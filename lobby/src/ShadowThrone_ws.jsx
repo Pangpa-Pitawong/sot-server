@@ -1,0 +1,1080 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// ─── CONFIG: Dynamic WebSocket URL ───────────────────────────────────────────
+// Priority: 1) ?server= query param  2) localStorage  3) same-host /ws
+function getWsUrl() {
+  try {
+    // ✅ FIX 1: รองรับ ?server=xxx.trycloudflare.com ใน URL
+    // เพื่อนคลิกลิงก์จาก host แล้ว connect server ได้ทันที
+    const params = new URLSearchParams(window.location.search);
+    const serverParam = params.get("server");
+    if (serverParam) {
+      // ถ้า host ส่ง ?server=xxxx.trycloudflare.com → แปลงเป็น wss://
+      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const url = serverParam.startsWith("ws") ? serverParam
+        : `${proto}//${serverParam}`;
+      // บันทึกลง localStorage ด้วยเพื่อไม่ต้องส่ง query ซ้ำ
+      try { localStorage.setItem("sot_ws_url", url); } catch {}
+      return url;
+    }
+  } catch {}
+  try {
+    const saved = localStorage.getItem("sot_ws_url");
+    if (saved && saved.startsWith("ws")) return saved;
+  } catch {}
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}/ws`;
+}
+const WS_URL = getWsUrl();
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const ROLES = {
+  king:     { id: "king",     ico: "👑", name: "พระราชา",  color: "#c9a84c",
+              why: "รักษาบัลลังก์และปกป้องอาณาจักร", win: "ครองราชย์ครบ 8 เฟส หรือปราบกบฏ" },
+  rebel:    { id: "rebel",    ico: "⚔️", name: "กบฏ",      color: "#c94040",
+              why: "โค่นบัลลังก์ด้วยการรวมกำลัง",    win: "ราชา HP=0 หรือยึดศาลบัลลังก์" },
+  traitor:  { id: "traitor",  ico: "🗡️", name: "คนทรยศ",  color: "#8c4cc9",
+              why: "ซ่อนตัวเป็นพันธมิตร สะสมสมบัติลับ", win: "สมบัติ 5 ชิ้น หรือรอดคนสุดท้าย" },
+  commoner: { id: "commoner", ico: "🧑‍🌾", name: "ราษฎร", color: "#4cc94c",
+              why: "ไม่อยู่ฝ่ายใด สะสมทรัพย์สิน",    win: "ทอง 10 เหรียญ หรือ Lv.5" },
+};
+
+const CLASSES = {
+  warrior: { id:"warrior", ico:"⚔️",  name:"นักรบ",    evo:"→ คนเถื่อน → เบอร์เซิกเกอร์", hp:12, mana:4,  move:3, s:{STR:5,DEX:2,VIT:4,INT:1}, ability:"โจมตีกว้าง 3 เป้าหมาย",    passive:"ทนดาเมจสุดท้าย 1 ครั้ง" },
+  knight:  { id:"knight",  ico:"🛡️",  name:"อัศวิน",   evo:"→ พาราดิน → โรยัลไนท์",        hp:14, mana:5,  move:2, s:{STR:4,DEX:2,VIT:5,INT:2}, ability:"พระบัญชา: สั่งย้ายผู้เล่น", passive:"ลดดาเมจรับ 1 ตลอดเวลา" },
+  mage:    { id:"mage",    ico:"🔮",  name:"นักเวทย์", evo:"→ จอมเวทย์ → นักปราญ์",         hp:7,  mana:14, move:2, s:{STR:1,DEX:3,VIT:2,INT:7}, ability:"เวทย์พื้นที่ 3 ช่อง",       passive:"จั่วเวทย์เพิ่ม 1 ใบ/เฟส" },
+  archer:  { id:"archer",  ico:"🏹",  name:"นักธนู",   evo:"→ พลซุ่มยิง → นักล่า",          hp:9,  mana:6,  move:4, s:{STR:2,DEX:6,VIT:3,INT:2}, ability:"ยิงข้ามกำแพง ระยะ 4",      passive:"ตีคริต 15% เสมอ" },
+  rogue:   { id:"rogue",   ico:"🗡️",  name:"โจร",      evo:"→ นักฆ่า → จอมอุบาย",           hp:9,  mana:7,  move:5, s:{STR:3,DEX:6,VIT:3,INT:2}, ability:"โจมตีด้านหลัง ATK×2",     passive:"หลบ 20% เสมอ" },
+  cleric:  { id:"cleric",  ico:"✨",  name:"นักบวช",   evo:"→ บาทหลวง → บิชอป",             hp:10, mana:10, move:2, s:{STR:1,DEX:2,VIT:4,INT:6}, ability:"ฟื้น HP +4 ให้พันธมิตร",   passive:"ฟื้น HP +1 ทุกต้นเทิร์น" },
+};
+
+// ─── CSS ──────────────────────────────────────────────────────────────────────
+const css = `
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700&family=Sarabun:wght@300;400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#c9a84c;--gold-l:#f0d080;--gold-d:#6a4010;--gold-f:rgba(201,168,76,0.08);
+  --stone:#0d0b08;--s2:#191510;--s3:#231f18;--s4:#2e2920;
+  --txt:#e8d5b0;--txt-m:#7a6848;--txt-d:#3d3528;--r:10px;
+}
+body{background:var(--stone);color:var(--txt);font-family:'Sarabun',sans-serif;font-size:14px;overflow-x:hidden;min-height:100vh}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--gold-d);border-radius:2px}
+.cinzel{font-family:'Cinzel',serif}
+.deco{font-family:'Cinzel Decorative',serif}
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.on{display:flex}
+
+/* ── TITLE ──────────────────────────────────────────────────── */
+#t{align-items:center;justify-content:center;text-align:center;
+  background:radial-gradient(ellipse 100% 80% at 50% 0%,#1a1208,var(--stone) 70%);
+  position:relative;overflow:hidden}
+.stars{position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(1px 1px at 10% 20%,rgba(201,168,76,.5),transparent),
+    radial-gradient(1px 1px at 85% 15%,rgba(201,168,76,.3),transparent),
+    radial-gradient(1px 1px at 30% 70%,rgba(201,168,76,.2),transparent),
+    radial-gradient(2px 2px at 60% 45%,rgba(201,168,76,.15),transparent),
+    radial-gradient(1px 1px at 50% 55%,rgba(201,168,76,.25),transparent)}
+.twrap{position:relative;z-index:1;padding:40px 20px;max-width:560px;width:100%}
+.crown{font-size:72px;display:block;animation:float 3s ease-in-out infinite;
+  filter:drop-shadow(0 0 30px rgba(201,168,76,.6))}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-14px) rotate(3deg)}}
+.tmain{font-family:'Cinzel Decorative',serif;font-size:clamp(26px,5vw,52px);color:var(--gold);
+  text-shadow:0 0 50px rgba(201,168,76,.4),0 2px 8px rgba(0,0,0,.9);letter-spacing:.06em;margin:.3em 0 .1em}
+.tsub{font-family:'Cinzel',serif;font-size:clamp(9px,1.2vw,12px);letter-spacing:.5em;color:var(--txt-m);text-transform:uppercase}
+.divl{width:240px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:1.2rem auto}
+.lore{font-size:13px;color:var(--txt-m);line-height:2;max-width:380px;margin:0 auto 1.8rem;font-style:italic}
+.mcards{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:360px;margin:0 auto;width:100%;padding:0 16px}
+.mcard{background:var(--s3);border:1px solid rgba(201,168,76,.15);border-radius:12px;padding:16px 12px;cursor:pointer;transition:all .2s;text-align:center}
+.mcard:hover{border-color:var(--gold);background:var(--gold-f);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.mico{font-size:32px;display:block;margin-bottom:6px}
+.mnm{font-family:'Cinzel',serif;font-size:12px;color:var(--gold);margin-bottom:3px}
+.mdesc{font-size:10px;color:var(--txt-m);line-height:1.5}
+
+/* ── BUTTONS ─────────────────────────────────────────────────── */
+.btn{font-family:'Cinzel',serif;cursor:pointer;border:none;border-radius:var(--r);transition:all .2s;letter-spacing:.04em;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.b-gold{background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#0d0b09;padding:11px 28px;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(201,168,76,.25)}
+.b-gold:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 32px rgba(201,168,76,.45)}
+.b-gold:disabled{opacity:.35;cursor:not-allowed}
+.b-ghost{background:transparent;color:var(--gold);border:1px solid rgba(201,168,76,.3);padding:9px 22px;font-size:12px}
+.b-ghost:hover{background:var(--gold-f);border-color:var(--gold)}
+.b-sm{background:rgba(201,168,76,.08);color:var(--gold-l);border:1px solid rgba(201,168,76,.2);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px;font-family:'Sarabun',sans-serif;transition:all .15s}
+.b-sm:hover:not(:disabled){background:rgba(201,168,76,.18);border-color:var(--gold)}
+.b-sm:disabled{opacity:.3;cursor:not-allowed}
+.b-danger{background:rgba(139,26,26,.5);color:#ffaaaa;border:1px solid rgba(139,26,26,.7);padding:7px 18px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Sarabun',sans-serif;transition:all .15s}
+.b-danger:hover{background:rgba(180,30,30,.8)}
+
+/* ── FORMS ───────────────────────────────────────────────────── */
+input,select{background:var(--s4);color:var(--txt);border:1px solid rgba(201,168,76,.2);border-radius:6px;padding:8px 12px;font-family:'Sarabun',sans-serif;font-size:13px;outline:none;width:100%}
+input:focus,select:focus{border-color:var(--gold)}
+input::placeholder{color:var(--txt-d)}
+
+/* ── LAYOUT ──────────────────────────────────────────────────── */
+.sbox{background:var(--s3);border:1px solid rgba(201,168,76,.12);border-radius:12px;padding:16px;margin-bottom:12px}
+.sh{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.18em;color:var(--txt-m);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sh::after{content:'';flex:1;height:1px;background:rgba(201,168,76,.1)}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.row label{font-size:12px;color:var(--txt-m);min-width:100px;flex-shrink:0}
+.row input,.row select{flex:1}
+
+/* ── LOBBY ───────────────────────────────────────────────────── */
+#l{background:var(--s2);align-items:center;justify-content:flex-start;padding:20px;overflow-y:auto}
+.lwrap{max-width:720px;width:100%;margin:0 auto}
+.lhdr{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.code-badge{background:var(--s3);border:1px solid var(--gold-d);border-radius:8px;padding:5px 14px;font-family:'Cinzel',serif;font-size:15px;color:var(--gold-l);letter-spacing:.25em}
+.vis-badge{font-size:11px;padding:3px 10px;border-radius:20px;font-family:'Sarabun',sans-serif}
+.vis-pub{background:rgba(76,201,76,.15);color:#4cc94c;border:1px solid rgba(76,201,76,.3)}
+.vis-prv{background:rgba(201,168,76,.12);color:var(--gold);border:1px solid rgba(201,168,76,.3)}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.slot{background:var(--s4);border:1px solid rgba(201,168,76,.1);border-radius:8px;padding:10px 12px;transition:all .2s}
+.slot.filled{border-color:rgba(201,168,76,.3)}
+.slot.ready-s{border-color:#2a7a35;background:rgba(42,122,53,.08)}
+.slot.host-s{border-color:rgba(201,168,76,.4);background:rgba(201,168,76,.04)}
+.slot.empty{opacity:.4}
+.sn{font-size:13px;font-weight:600;margin-bottom:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.sc{font-size:10px;color:var(--txt-m);margin-bottom:3px}
+
+/* ready bar */
+.rbar{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px}
+.rdot{width:10px;height:10px;border-radius:50%;background:var(--s4);border:1px solid var(--txt-d);transition:all .3s}
+.rdot.on{background:#4cc94c;border-color:#4cc94c;box-shadow:0 0 6px rgba(76,201,76,.5)}
+
+/* tags */
+.tag{font-size:9px;padding:2px 8px;border-radius:4px}
+.tag-you{background:rgba(201,168,76,.2);color:var(--gold)}
+.tag-host{background:rgba(201,168,76,.3);color:var(--gold-l)}
+.tag-ready{background:rgba(42,122,53,.3);color:#4cc94c}
+.tag-roleok{background:rgba(76,201,76,.15);color:#4cc94c}
+
+/* ── ROOM LIST ───────────────────────────────────────────────── */
+#rl{background:var(--s2);align-items:center;justify-content:flex-start;padding:20px;overflow-y:auto}
+.rlwrap{max-width:600px;width:100%;margin:0 auto}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tab{flex:1;background:var(--s3);border:1px solid rgba(201,168,76,.12);border-radius:8px;padding:10px;cursor:pointer;text-align:center;font-family:'Cinzel',serif;font-size:12px;color:var(--txt-m);transition:all .2s}
+.tab.on{border-color:var(--gold);color:var(--gold);background:var(--gold-f)}
+.room-card{background:var(--s3);border:1px solid rgba(201,168,76,.15);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .2s}
+.room-card:hover{border-color:var(--gold);background:var(--gold-f);transform:translateX(3px)}
+.rc-code{font-family:'Cinzel',serif;font-size:15px;color:var(--gold);letter-spacing:.15em;min-width:90px}
+.rc-info{flex:1}
+.rc-host{font-size:13px;font-weight:600}
+.rc-meta{font-size:11px;color:var(--txt-m);margin-top:2px}
+.rc-count{font-family:'Cinzel',serif;font-size:13px;color:var(--gold-l);background:var(--s4);padding:4px 10px;border-radius:6px;border:1px solid var(--gold-d)}
+.empty-rooms{text-align:center;padding:48px 20px;color:var(--txt-m)}
+.join-box{background:var(--s3);border:1px solid rgba(201,168,76,.2);border-radius:12px;padding:20px;max-width:340px;margin:0 auto;text-align:center}
+.join-title{font-family:'Cinzel',serif;font-size:14px;color:var(--gold);margin-bottom:12px}
+.join-input{text-align:center;letter-spacing:.2em;font-family:'Cinzel',serif;font-size:16px;text-transform:uppercase;margin-bottom:12px}
+
+/* ── CREATE SCREEN ───────────────────────────────────────────── */
+#cr{background:var(--s2);align-items:center;justify-content:center;padding:20px}
+
+/* visibility toggle */
+.vis-toggle{display:flex;gap:8px;margin-bottom:8px}
+.vis-opt{flex:1;background:var(--s4);border:1.5px solid rgba(201,168,76,.15);border-radius:8px;padding:10px;cursor:pointer;text-align:center;transition:all .2s}
+.vis-opt:hover{border-color:var(--gold-d)}
+.vis-opt.sel{border-color:var(--gold);background:var(--gold-f)}
+.vis-ico{font-size:20px;margin-bottom:4px}
+.vis-nm{font-family:'Cinzel',serif;font-size:11px;color:var(--gold)}
+.vis-desc{font-size:9px;color:var(--txt-m);margin-top:2px;line-height:1.4}
+
+/* ── CLASS GRID ──────────────────────────────────────────────── */
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ccard{background:var(--s4);border:1.5px solid rgba(201,168,76,.12);border-radius:10px;padding:12px 8px;cursor:pointer;transition:all .2s;text-align:center}
+.ccard:hover,.ccard.sel{border-color:var(--gold);background:var(--gold-f);transform:translateY(-2px)}
+.ci{font-size:30px;margin-bottom:4px}
+.cn{font-family:'Cinzel',serif;font-size:11px;color:var(--gold);margin-bottom:3px}
+.ce{font-size:8px;color:var(--txt-d);margin-bottom:4px}
+.cst{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;margin-bottom:4px}
+.cs{font-size:8px;background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px;color:var(--txt-m)}
+.cab{font-size:9px;color:rgba(201,168,76,.7);line-height:1.4;text-align:left}
+.cpas{font-size:8px;color:rgba(100,180,100,.7);line-height:1.3;margin-top:2px;text-align:left}
+
+/* ── ROLE REVEAL ─────────────────────────────────────────────── */
+#rr{background:radial-gradient(ellipse at 50% 50%,#0d0a05,#040302);align-items:center;justify-content:center}
+.rrwrap{display:flex;flex-direction:column;align-items:center;padding:24px 20px;min-height:100vh;justify-content:center}
+.flip-outer{perspective:700px;cursor:pointer;margin:16px 0}
+.flip{width:220px;height:310px;position:relative;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.4,0,.2,1)}
+.flip.f{transform:rotateY(180deg)}
+.fback,.ffront{position:absolute;inset:0;border-radius:14px;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;border:2px solid var(--gold-d)}
+.fback{background:linear-gradient(160deg,var(--s3),var(--s2));
+  background-image:repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(201,168,76,.03) 8px,rgba(201,168,76,.03) 9px)}
+.fbglyph{font-size:64px;color:var(--gold-d);opacity:.4;animation:ps 2s ease-in-out infinite}
+@keyframes ps{0%,100%{opacity:.2}50%{opacity:.6}}
+.ffront{transform:rotateY(180deg)}
+.ff-king{background:linear-gradient(160deg,#2a1800,#4a2e00)}
+.ff-rebel{background:linear-gradient(160deg,#1a0808,#3a1010)}
+.ff-traitor{background:linear-gradient(160deg,#0a0a12,#181828)}
+.ff-commoner{background:linear-gradient(160deg,#081008,#10281a)}
+.fico{font-size:56px;margin-bottom:8px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.6))}
+.fnm{font-family:'Cinzel',serif;font-size:17px;color:var(--gold);margin-bottom:4px}
+.fwhy{font-size:10px;color:var(--txt-m);text-align:center;line-height:1.6}
+.fwin{font-size:9px;color:var(--gold-l);margin-top:8px;border-top:1px solid rgba(201,168,76,.2);padding-top:6px;width:100%;text-align:center;line-height:1.5}
+.blink{animation:blink 1.4s ease-in-out infinite;color:var(--txt-m);font-size:11px}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+.warn-box{font-size:10px;color:rgba(255,180,50,.8);background:rgba(200,120,0,.1);border:1px solid rgba(200,120,0,.3);border-radius:6px;padding:7px 14px;margin-bottom:12px;text-align:center}
+
+/* players-confirmed display */
+.confirmed-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
+.conf-chip{font-size:10px;padding:3px 10px;border-radius:20px;background:rgba(42,122,53,.2);border:1px solid rgba(42,122,53,.5);color:#4cc94c}
+.conf-chip.waiting{background:rgba(60,50,30,.3);border-color:rgba(201,168,76,.2);color:var(--txt-m)}
+
+/* waiting overlay for gameboard */
+.wait-overlay{position:fixed;inset:0;background:rgba(13,11,8,.92);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:50;gap:16px}
+
+/* ── LOADING / TOAST ─────────────────────────────────────────── */
+.loading-overlay{position:fixed;inset:0;background:rgba(13,11,8,.85);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px}
+.loading-spinner{width:40px;height:40px;border:3px solid var(--gold-d);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-family:'Cinzel',serif;font-size:13px;color:var(--gold);letter-spacing:.1em}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(0);
+  background:rgba(201,168,76,.92);color:#0d0b09;padding:8px 22px;border-radius:8px;
+  font-size:13px;font-family:'Sarabun',sans-serif;z-index:9999;
+  transition:opacity .3s,transform .3s;pointer-events:none}
+.toast.hide{opacity:0;transform:translateX(-50%) translateY(8px)}
+
+/* WS badge */
+.ws-badge{font-size:10px;padding:3px 10px;border-radius:20px;font-family:'Sarabun',sans-serif;display:inline-block}
+.ws-ok{background:rgba(42,122,53,.2);color:#4cc94c;border:1px solid rgba(42,122,53,.4)}
+.ws-connecting{background:rgba(201,168,76,.1);color:var(--gold);border:1px solid rgba(201,168,76,.3);animation:pulse .9s ease-in-out infinite}
+.ws-err{background:rgba(139,26,26,.2);color:#ffaaaa;border:1px solid rgba(139,26,26,.4)}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* game board */
+#gb{background:var(--stone);padding:20px;overflow-y:auto}
+.game-table{width:100%;border-collapse:collapse;margin:14px 0}
+.game-table th{background:rgba(201,168,76,.12);color:var(--gold-l);padding:8px 10px;font-size:12px;text-align:left;font-family:'Cinzel',serif}
+.game-table td{padding:10px 8px;border-bottom:1px solid rgba(201,168,76,.08);font-size:13px}
+.pulse{animation:pulse .9s ease-in-out infinite;font-size:11px;color:var(--txt-m);text-align:center}
+`;
+
+// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
+export default function ShadowThrone() {
+  // ── Screen state ──────────────────────────────────────────────────────────
+  const [screen, setScreen] = useState("title");
+  const [tab, setTab] = useState("browse");
+
+  // ── WebSocket ─────────────────────────────────────────────────────────────
+  const wsRef = useRef(null);
+  const [wsStatus, setWsStatus] = useState("connecting");
+
+  // ── Identity ──────────────────────────────────────────────────────────────
+  const [myName, setMyName] = useState("");
+  const [myClass, setMyClass] = useState("");
+  const myNameRef = useRef(""); // stable ref to avoid stale closure bugs
+
+  // ── Room state ────────────────────────────────────────────────────────────
+  const [room, _setRoom] = useState(null);
+  const roomRef = useRef(null);
+  const setRoom = (r) => { roomRef.current = r; _setRoom(r); };
+
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadMsg, setLoadMsg] = useState("");
+
+  // ── Create form ───────────────────────────────────────────────────────────
+  const [newName, setNewName] = useState("");
+  const [newCount, setNewCount] = useState(4);
+  const [newMode, setNewMode] = useState("standard");
+  const [newVis, setNewVis] = useState("public"); // "public" | "private"
+
+  // ── Join form ─────────────────────────────────────────────────────────────
+  const [joinCode, setJoinCode] = useState("");
+  const [joinName, setJoinName] = useState("");
+
+  // ── Role reveal ───────────────────────────────────────────────────────────
+  const [flipped, setFlipped] = useState(false);
+  const [myRole, setMyRole] = useState(null);
+  const [roleConfirmed, setRoleConfirmed] = useState(false); // I confirmed
+  const [allRolesReady, setAllRolesReady] = useState(false); // everyone confirmed
+
+  // ── Server Config (สำหรับ Cloudflare Tunnel) ─────────────────────────────
+  const [serverUrlInput, setServerUrlInput] = useState(
+    (() => { try { return localStorage.getItem("sot_ws_url") || ""; } catch { return ""; } })()
+  );
+  const [showServerConfig, setShowServerConfig] = useState(false);
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  const [toast, setToast] = useState({ msg: "", show: false });
+  const showToast = useCallback((msg) => {
+    setToast({ msg, show: true });
+    setTimeout(() => setToast(t => ({ ...t, show: false })), 2600);
+  }, []);
+
+  // ── WebSocket connection with auto-reconnect ───────────────────────────────
+  const wsSend = useCallback((data) => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify(data));
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    let ws;
+    let reconnectTimer;
+
+    function connect() {
+      if (!alive) return;
+      setWsStatus("connecting");
+      ws = new WebSocket(WS_URL);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (!alive) return;
+        setWsStatus("ok");
+        // Re-request room list if on join screen
+        if (screen === "join") wsSend({ type: "list_rooms" });
+      };
+
+      ws.onmessage = (e) => {
+        if (!alive) return;
+        let msg;
+        try { msg = JSON.parse(e.data); } catch { return; }
+
+        switch (msg.type) {
+
+          // ── Server assigned us a slot ──────────────────────────────────
+          case "joined":
+            setRoom(msg.room);
+            setLoading(false);
+            setScreen("lobby");
+            showToast(msg.playerIdx === 0
+              ? "✅ สร้างห้องสำเร็จ! รหัส: " + msg.room.code
+              : "✅ เข้าห้องสำเร็จ!"
+            );
+            break;
+
+          // ── Lobby / room state changed ─────────────────────────────────
+          case "room_update": {
+            setRoom(msg.room);
+
+            // If game just started → go to role reveal
+            if (msg.room.status === "started" && screen !== "roles" && screen !== "gameboard") {
+              // Find MY role index
+              const myIdx = msg.room.players.findIndex(
+                p => p.name === myNameRef.current
+              );
+              if (myIdx >= 0 && msg.room.roles) {
+                setMyRole(msg.room.roles[myIdx]);
+                setFlipped(false);
+                setRoleConfirmed(false);
+                setAllRolesReady(false);
+                setScreen("roles");
+              }
+            }
+            break;
+          }
+
+          // ── Room list for browse tab ───────────────────────────────────
+          case "room_list":
+            setRooms(msg.rooms || []);
+            break;
+
+          // ── All players confirmed their role → open game board ─────────
+          case "all_roles_ready":
+            setAllRolesReady(true);
+            // Automatically transition (no button needed)
+            setScreen("gameboard");
+            break;
+
+          case "kicked":
+            showToast("คุณถูกเตะออกจากห้อง");
+            setRoom(null); setMyClass(""); setMyRole(null); setScreen("title");
+            break;
+
+          case "room_closed":
+            showToast("⚠ " + (msg.reason === "host_left" ? "Host ออกจากห้องแล้ว" : "ห้องถูกปิด"));
+            setRoom(null); setMyClass(""); setMyRole(null); setScreen("title");
+            break;
+
+          case "error":
+            showToast("❌ " + msg.msg);
+            setLoading(false);
+            break;
+
+          default:
+            break;
+        }
+      };
+
+      ws.onclose = () => {
+        if (!alive) return;
+        setWsStatus("error");
+        reconnectTimer = setTimeout(connect, 3000);
+      };
+      ws.onerror = () => { if (alive) setWsStatus("error"); };
+    }
+
+    connect();
+    return () => {
+      alive = false;
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showToast]);
+
+  // ── Browse: auto-refresh when on join tab ─────────────────────────────────
+  const browseRooms = useCallback(() => wsSend({ type: "list_rooms" }), [wsSend]);
+  useEffect(() => {
+    if (screen !== "join") return;
+    browseRooms();
+    const t = setInterval(browseRooms, 4000);
+    return () => clearInterval(t);
+  }, [screen, browseRooms]);
+
+  // ── Save Server URL ───────────────────────────────────────────────────────
+  const saveServerUrl = () => {
+    try {
+      const url = serverUrlInput.trim();
+      if (url) {
+        localStorage.setItem("sot_ws_url", url);
+      } else {
+        localStorage.removeItem("sot_ws_url");
+      }
+      window.location.reload();
+    } catch {}
+  };
+
+  // ─── ACTIONS ──────────────────────────────────────────────────────────────
+  const saveName = (name) => {
+    const n = name.trim();
+    setMyName(n);
+    myNameRef.current = n;
+  };
+
+  const createRoom = () => {
+    const name = newName.trim() || "ผู้เล่น 1";
+    saveName(name);
+    setLoading(true);
+    setLoadMsg("กำลังสร้างห้อง...");
+    setMyClass("");
+    // NOTE: code is generated SERVER-SIDE now — do NOT send a code
+    wsSend({ type: "create_room", playerName: name, maxPlayers: newCount, mode: newMode, visibility: newVis });
+  };
+
+  const joinRoom = (codeArg) => {
+    const code = (codeArg || joinCode).trim().toUpperCase();
+    const name = joinName.trim() || "ผู้เล่น";
+    if (!code) { showToast("กรอกรหัสห้องก่อน"); return; }
+    saveName(name);
+    setLoading(true);
+    setLoadMsg("กำลังเข้าร่วมห้อง...");
+    setMyClass("");
+    wsSend({ type: "join_room", code, playerName: name });
+  };
+
+  const pickClass = (clsId) => {
+    setMyClass(clsId);
+    wsSend({ type: "pick_class", classId: clsId });
+  };
+
+  const toggleReady = () => {
+    if (!myClass) { showToast("เลือกอาชีพก่อน"); return; }
+    wsSend({ type: "toggle_ready" });
+  };
+
+  const startGame = () => wsSend({ type: "start_game" });
+  const kickPlayer = (idx) => wsSend({ type: "kick_player", playerIdx: idx });
+
+  // FIX: proper leave — notify server first so it can clean up
+  const leaveRoom = () => {
+    wsSend({ type: "leave_room" });
+    setRoom(null);
+    setMyClass("");
+    setMyRole(null);
+    setRoleConfirmed(false);
+    setAllRolesReady(false);
+    setScreen("title");
+  };
+
+  // ── Role reveal confirm ────────────────────────────────────────────────────
+  // FIX: each player confirms independently; server tracks progress
+  const confirmRole = () => {
+    if (!roleConfirmed) {
+      setRoleConfirmed(true);
+      wsSend({ type: "role_confirmed", playerName: myNameRef.current });
+    }
+  };
+
+  // ── Derived values ────────────────────────────────────────────────────────
+  const players = room?.players || [];
+  const myIdx = players.findIndex(p => p.name === myName);
+  const isHost = myIdx === 0;
+  const readyCount = players.filter(p => p.ready || p.host).length;
+  const rolesReadyList = room?.rolesReady || [];
+
+  const roleDef = myRole ? ROLES[myRole] : null;
+
+  // ── WS status badge ───────────────────────────────────────────────────────
+  const wsBadge =
+    wsStatus === "ok"         ? <span className="ws-badge ws-ok">● เชื่อมต่อแล้ว</span>
+    : wsStatus === "connecting" ? <span className="ws-badge ws-connecting">○ กำลังเชื่อมต่อ...</span>
+    :                             <span className="ws-badge ws-err">✕ ไม่ได้เชื่อมต่อ — รีสตาร์ท server?</span>;
+
+  // ─── RENDER ───────────────────────────────────────────────────────────────
+  return (
+    <>
+      <style>{css}</style>
+
+      {/* LOADING */}
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner" />
+          <div className="loading-txt">{loadMsg}</div>
+        </div>
+      )}
+
+      {/* TOAST */}
+      <div className={`toast${toast.show ? "" : " hide"}`}>{toast.msg}</div>
+
+      {/* ═══════════════════ TITLE ═══════════════════ */}
+      <div id="t" className={`screen${screen === "title" ? " on" : ""}`}>
+        <div className="stars" />
+        <div className="twrap">
+          <span className="crown">♛</span>
+          <h1 className="tmain">บัลลังก์เงา</h1>
+          <div className="tsub">Shadow of Throne</div>
+          <div className="divl" />
+          <p className="lore">ในยุคแห่งความแตกแยก บัลลังก์รอผู้พิชิต<br />ใช้เล่ห์เหลี่ยม อาวุธ เวทย์มนตร์ และโชคชะตา</p>
+          <div style={{ marginBottom: "16px" }}>
+            {wsBadge}
+            {/* ✅ FIX 4: แสดงข้อความว่ากำลังใช้ server ของเพื่อน */}
+            {WS_URL && !WS_URL.includes("localhost") && !WS_URL.includes("127.0.0.1") && wsStatus === "ok" && (
+              <div style={{ marginTop: "8px", fontSize: "10px", color: "#4cc94c", background: "rgba(42,122,53,.15)", border: "1px solid rgba(42,122,53,.3)", borderRadius: "6px", padding: "5px 12px" }}>
+                🌐 เชื่อมต่อกับ server ข้ามเน็ตสำเร็จ
+              </div>
+            )}
+            <div style={{ marginTop: "8px" }}>
+              <button
+                className="b-sm"
+                onClick={() => setShowServerConfig(v => !v)}
+                style={{ fontSize: "10px" }}
+              >
+                🌐 {showServerConfig ? "ซ่อน" : "ตั้งค่า"} Server URL
+              </button>
+            </div>
+            {showServerConfig && (
+              <div style={{
+                marginTop: "10px",
+                background: "var(--s3)",
+                border: "1px solid rgba(201,168,76,.2)",
+                borderRadius: "10px",
+                padding: "14px",
+                maxWidth: "340px",
+                width: "100%",
+                textAlign: "left",
+              }}>
+                <div style={{ fontSize: "11px", color: "var(--gold)", marginBottom: "6px", fontFamily: "'Cinzel',serif" }}>
+                  🌐 Server URL (สำหรับเล่นข้ามอินเทอร์เน็ต)
+                </div>
+                <div style={{ fontSize: "10px", color: "var(--txt-m)", marginBottom: "8px", lineHeight: 1.8 }}>
+                  <b style={{ color: "var(--gold)" }}>วิธีเล่นข้ามอินเทอร์เน็ต:</b><br />
+                  1️⃣ host รัน <code style={{ color: "var(--gold-l)", fontSize: "9px" }}>cloudflared tunnel --url http://localhost:3001</code><br />
+                  2️⃣ คัดลอก URL ที่ได้ เช่น <code style={{ color: "var(--gold-l)", fontSize: "9px" }}>https://abc.trycloudflare.com</code><br />
+                  3️⃣ ใส่ด้านล่างนี้เป็น <code style={{ color: "var(--gold-l)", fontSize: "9px" }}>wss://abc.trycloudflare.com</code><br />
+                  4️⃣ กด "บันทึก" แล้วส่งลิงก์แชร์ให้เพื่อน ✨
+                </div>
+                <input
+                  value={serverUrlInput}
+                  onChange={e => setServerUrlInput(e.target.value)}
+                  placeholder="wss://xxx.trycloudflare.com/ws  (หรือเว้นว่าง)"
+                  style={{ marginBottom: "8px", fontSize: "11px" }}
+                />
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    className="btn b-gold"
+                    style={{ flex: 1, padding: "8px", fontSize: "11px" }}
+                    onClick={saveServerUrl}
+                  >
+                    💾 บันทึก &amp; รีโหลด
+                  </button>
+                  {serverUrlInput && (
+                    <button
+                      className="b-sm"
+                      onClick={() => {
+                        setServerUrlInput("");
+                        localStorage.removeItem("sot_ws_url");
+                      }}
+                      style={{ fontSize: "10px" }}
+                    >
+                      ✕ ล้าง
+                    </button>
+                  )}
+                </div>
+                <div style={{ marginTop: "8px", fontSize: "9px", color: "var(--txt-d)" }}>
+                  URL ปัจจุบัน: {WS_URL}
+                </div>
+                {/* ✅ FIX 3: แสดงลิงก์แชร์สำหรับเพื่อน */}
+                {WS_URL && !WS_URL.includes("localhost") && (
+                  <div style={{ marginTop: "10px", background: "rgba(76,201,76,.08)", border: "1px solid rgba(76,201,76,.25)", borderRadius: "8px", padding: "10px" }}>
+                    <div style={{ fontSize: "10px", color: "#4cc94c", marginBottom: "6px", fontWeight: 600 }}>
+                      🔗 ลิงก์สำหรับเพื่อนต่างเน็ต
+                    </div>
+                    <div style={{ fontSize: "9px", color: "var(--txt-m)", marginBottom: "6px", lineHeight: 1.6 }}>
+                      ส่งลิงก์นี้ให้เพื่อน — คลิกแล้วเข้าเกมได้ทันที ไม่ต้องกรอก URL เอง
+                    </div>
+                    <div style={{ fontSize: "9px", color: "var(--gold-l)", background: "rgba(0,0,0,.3)", padding: "5px 8px", borderRadius: "4px", wordBreak: "break-all", marginBottom: "6px" }}>
+                      {(() => {
+                        const serverHost = WS_URL.replace(/^wss?:\/\//, "").replace(/\/ws\/?$/, "");
+                        return `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(serverHost)}`;
+                      })()}
+                    </div>
+                    <button className="b-sm" style={{ width: "100%", background: "rgba(76,201,76,.2)", borderColor: "rgba(76,201,76,.4)", color: "#4cc94c" }}
+                      onClick={() => {
+                        const serverHost = WS_URL.replace(/^wss?:\/\//, "").replace(/\/ws\/?$/, "");
+                        const shareUrl = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(serverHost)}`;
+                        navigator.clipboard?.writeText(shareUrl).catch(() => {});
+                        setShowServerConfig(false);
+                      }}>
+                      📋 คัดลอกลิงก์
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mcards">
+            <div className="mcard" onClick={() => setScreen("create")}>
+              <span className="mico">🏰</span>
+              <div className="mnm">สร้างห้อง</div>
+              <div className="mdesc">เริ่มเกมใหม่<br />3–6 ผู้เล่น</div>
+            </div>
+            <div className="mcard" onClick={() => setScreen("join")}>
+              <span className="mico">⚔️</span>
+              <div className="mnm">หาห้อง / เข้าร่วม</div>
+              <div className="mdesc">เลือกห้องสาธารณะ<br />หรือใส่รหัสส่วนตัว</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════ CREATE ROOM ═══════════════ */}
+      <div id="cr" className={`screen${screen === "create" ? " on" : ""}`}>
+        <div style={{ maxWidth: "440px", width: "100%", padding: "20px" }}>
+          <div className="lhdr" style={{ marginBottom: "20px" }}>
+            <button className="b-sm" onClick={() => setScreen("title")}>← กลับ</button>
+            <h2 className="cinzel" style={{ fontSize: "18px", color: "var(--gold)" }}>🏰 สร้างห้องใหม่</h2>
+          </div>
+
+          <div className="sbox">
+            <div className="sh">⚙ ตั้งค่าห้อง</div>
+
+            <div className="row">
+              <label>ชื่อของคุณ:</label>
+              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="ชื่อ Host" maxLength={12} />
+            </div>
+            <div className="row">
+              <label>จำนวนผู้เล่น:</label>
+              <select value={newCount} onChange={e => setNewCount(+e.target.value)}>
+                <option value={3}>3 คน</option>
+                <option value={4}>4 คน</option>
+                <option value={5}>5 คน</option>
+                <option value={6}>6 คน</option>
+              </select>
+            </div>
+            <div className="row">
+              <label>โหมดเกม:</label>
+              <select value={newMode} onChange={e => setNewMode(e.target.value)}>
+                <option value="standard">มาตรฐาน (6 เฟส)</option>
+                <option value="quick">ด่วน (4 เฟส)</option>
+                <option value="epic">มหากาพย์ (8 เฟส)</option>
+              </select>
+            </div>
+
+            {/* ✨ NEW: visibility toggle */}
+            <div style={{ marginBottom: "8px" }}>
+              <div style={{ fontSize: "12px", color: "var(--txt-m)", marginBottom: "6px" }}>ประเภทห้อง:</div>
+              <div className="vis-toggle">
+                <div className={`vis-opt${newVis === "public" ? " sel" : ""}`} onClick={() => setNewVis("public")}>
+                  <div className="vis-ico">🌐</div>
+                  <div className="vis-nm">สาธารณะ</div>
+                  <div className="vis-desc">แสดงในรายการห้อง<br />ทุกคนเข้าได้</div>
+                </div>
+                <div className={`vis-opt${newVis === "private" ? " sel" : ""}`} onClick={() => setNewVis("private")}>
+                  <div className="vis-ico">🔒</div>
+                  <div className="vis-nm">ส่วนตัว</div>
+                  <div className="vis-desc">ซ่อนจากรายการ<br />ต้องมีรหัสเข้า</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: "10px", color: "var(--txt-m)", background: "rgba(201,168,76,.05)", padding: "8px 10px", borderRadius: "6px", border: "1px solid rgba(201,168,76,.15)" }}>
+              🎲 รหัสห้องจะถูกสร้างโดยอัตโนมัติ — แชร์ให้เพื่อนเพื่อเข้าร่วม
+            </div>
+          </div>
+
+          <div style={{ textAlign: "center", marginTop: "8px" }}>
+            <button className="btn b-gold" onClick={createRoom} disabled={!newName.trim() || wsStatus !== "ok"}>
+              🏰 สร้างห้องเลย
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════ JOIN / BROWSE ═══════════════ */}
+      <div id="rl" className={`screen${screen === "join" ? " on" : ""}`}>
+        <div className="rlwrap">
+          <div className="lhdr">
+            <button className="b-sm" onClick={() => setScreen("title")}>← กลับ</button>
+            <h2 className="cinzel" style={{ fontSize: "18px", color: "var(--gold)" }}>⚔️ เข้าร่วมเกม</h2>
+          </div>
+
+          <div className="tabs">
+            <div className={`tab${tab === "browse" ? " on" : ""}`} onClick={() => { setTab("browse"); browseRooms(); }}>
+              🔍 ห้องสาธารณะ
+            </div>
+            <div className={`tab${tab === "manual" ? " on" : ""}`} onClick={() => setTab("manual")}>
+              🔒 ใส่รหัสห้อง
+            </div>
+          </div>
+
+          {tab === "browse" && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                <div style={{ fontSize: "12px", color: "var(--txt-m)" }}>ห้องสาธารณะที่กำลังรอผู้เล่น</div>
+                <button className="b-sm" onClick={browseRooms}>🔄 รีเฟรช</button>
+              </div>
+
+              {rooms.length === 0 ? (
+                <div className="empty-rooms">
+                  <div style={{ fontSize: "48px", marginBottom: "12px" }}>🏰</div>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: "15px", color: "var(--txt-m)", marginBottom: "6px" }}>
+                    ยังไม่มีห้องสาธารณะเปิดอยู่
+                  </div>
+                  <div style={{ fontSize: "11px", marginBottom: "16px", color: "var(--txt-m)" }}>
+                    สร้างห้องเอง หรือใช้แท็บ "ใส่รหัสห้อง" สำหรับห้องส่วนตัว
+                  </div>
+                  <button className="btn b-ghost" onClick={() => setScreen("create")}>+ สร้างห้อง</button>
+                </div>
+              ) : (
+                rooms.map(r => (
+                  <div className="room-card" key={r.code} onClick={() => {
+                    const n = prompt("ชื่อของคุณ:", "");
+                    if (n !== null) { setJoinName(n); joinRoom(r.code); }
+                  }}>
+                    <div className="rc-code">{r.code}</div>
+                    <div className="rc-info">
+                      <div className="rc-host">👑 {r.hostName || "Host"}</div>
+                      <div className="rc-meta">
+                        {r.mode === "quick" ? "โหมดด่วน" : r.mode === "epic" ? "มหากาพย์" : "มาตรฐาน"}
+                        &ensp;·&ensp;{Math.round((Date.now() - r.createdAt) / 60000)} นาทีที่แล้ว
+                      </div>
+                    </div>
+                    <div className="rc-count">{r.players.length}/{r.maxPlayers}</div>
+                  </div>
+                ))
+              )}
+            </>
+          )}
+
+          {tab === "manual" && (
+            <div className="join-box">
+              <div className="join-title">🔒 กรอกรหัสห้อง (ส่วนตัว / สาธารณะ)</div>
+              <input
+                className="join-input"
+                value={joinCode}
+                onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                placeholder="SOT-XXXX"
+                maxLength={8}
+                style={{ marginBottom: "10px" }}
+              />
+              <input
+                style={{ textAlign: "center", marginBottom: "12px" }}
+                value={joinName}
+                onChange={e => setJoinName(e.target.value)}
+                placeholder="ชื่อของคุณ"
+                maxLength={12}
+              />
+              <button className="btn b-gold" onClick={() => joinRoom()} disabled={joinCode.length < 4 || wsStatus !== "ok"}>
+                เข้าร่วมห้อง →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ═══════════════════ LOBBY ═══════════════════ */}
+      <div id="l" className={`screen${screen === "lobby" ? " on" : ""}`}>
+        <div className="lwrap">
+          <div className="lhdr">
+            <button className="b-danger" onClick={leaveRoom}>✕ ออก</button>
+            <h2 className="cinzel" style={{ fontSize: "17px", color: "var(--gold)" }}>ห้องเกม</h2>
+            {room && (
+              <>
+                <div className="code-badge">{room.code}</div>
+                <span className={`vis-badge ${room.visibility === "private" ? "vis-prv" : "vis-pub"}`}>
+                  {room.visibility === "private" ? "🔒 ส่วนตัว" : "🌐 สาธารณะ"}
+                </span>
+                <button className="b-sm" onClick={() => {
+                  navigator.clipboard?.writeText(room.code).catch(() => {});
+                  showToast("📋 คัดลอกรหัสห้องแล้ว: " + room.code);
+                }}>📋 คัดลอก</button>
+                {/* ✅ FIX 2: ปุ่มแชร์ลิงก์สำหรับเพื่อนต่างเน็ต */}
+                {WS_URL && !WS_URL.includes("localhost") && !WS_URL.includes("127.0.0.1") && (
+                  <button className="b-sm" style={{ background: "rgba(76,201,76,.15)", borderColor: "rgba(76,201,76,.4)", color: "#4cc94c" }}
+                    onClick={() => {
+                      // สร้างลิงก์ที่เพื่อนกดแล้ว connect server ได้ทันที
+                      const serverHost = WS_URL.replace(/^wss?:\/\//, "").replace(/\/ws\/?$/, "");
+                      const shareUrl = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(serverHost)}`;
+                      navigator.clipboard?.writeText(shareUrl).catch(() => {});
+                      showToast("🔗 คัดลอกลิงก์แชร์แล้ว! ส่งให้เพื่อนคลิกเพื่อเข้าร่วม");
+                    }}>🔗 แชร์ลิงก์</button>
+                )}
+              </>
+            )}
+          </div>
+
+          {room && (
+            <>
+              {/* Ready dots */}
+              <div className="rbar">
+                {Array.from({ length: room.maxPlayers }).map((_, i) => {
+                  const p = room.players[i];
+                  return <div key={i} className={`rdot${p && (p.ready || p.host) ? " on" : ""}`} title={p?.name || "ว่าง"} />;
+                })}
+                <span style={{ fontSize: "11px", color: "var(--txt-m)", marginLeft: "6px" }}>
+                  {readyCount}/{room.maxPlayers} พร้อม
+                </span>
+              </div>
+
+              {/* Player slots */}
+              <div className="sbox">
+                <div className="sh">👥 ผู้เล่น ({room.players.length}/{room.maxPlayers})</div>
+                <div className="slots">
+                  {Array.from({ length: room.maxPlayers }).map((_, i) => {
+                    const p = room.players[i];
+                    const isMe = p && p.name === myName;
+                    const cls = p?.class ? CLASSES[p.class] : null;
+                    if (!p) return (
+                      <div key={i} className="slot empty">
+                        <div className="sn" style={{ color: "var(--txt-d)" }}>รอผู้เล่น...</div>
+                      </div>
+                    );
+                    return (
+                      <div key={i} className={`slot filled${p.ready ? " ready-s" : ""}${i === 0 ? " host-s" : ""}`}>
+                        <div className="sn">
+                          {cls?.ico || "🧑"} {p.name}
+                          {isMe && <span className="tag tag-you">คุณ</span>}
+                          {i === 0 && <span className="tag tag-host">Host</span>}
+                          {p.ready && <span className="tag tag-ready">✓</span>}
+                        </div>
+                        <div className="sc">{cls ? cls.name : "ยังไม่เลือกอาชีพ"}</div>
+                        {isHost && !isMe && (
+                          <button className="b-danger" style={{ fontSize: "10px", padding: "2px 8px", marginTop: "4px" }}
+                            onClick={() => kickPlayer(i)}>✕ Kick</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Class selection */}
+              <div className="sbox">
+                <div className="sh">⚔ เลือกอาชีพของคุณ</div>
+                <div className="cgrid">
+                  {Object.values(CLASSES).map(cls => (
+                    <div key={cls.id} className={`ccard${myClass === cls.id ? " sel" : ""}`} onClick={() => pickClass(cls.id)}>
+                      <div className="ci">{cls.ico}</div>
+                      <div className="cn">{cls.name}</div>
+                      <div className="ce">{cls.evo}</div>
+                      <div className="cst">
+                        <span className="cs">STR {cls.s.STR}</span>
+                        <span className="cs">DEX {cls.s.DEX}</span>
+                        <span className="cs">VIT {cls.s.VIT}</span>
+                        <span className="cs">INT {cls.s.INT}</span>
+                      </div>
+                      <div style={{ fontSize: "9px", color: "var(--txt-m)", margin: "3px 0 4px" }}>
+                        ❤ {cls.hp} &nbsp; 💧 {cls.mana} &nbsp; 🗺 {cls.move}
+                      </div>
+                      <div className="cab">⚡ {cls.ability}</div>
+                      <div className="cpas">🟢 {cls.passive}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap", marginTop: "4px" }}>
+                {!isHost && (
+                  <button
+                    className={`btn b-ghost`}
+                    style={players.find(p => p.name === myName)?.ready
+                      ? { background: "rgba(42,122,53,.3)", borderColor: "#2a7a35" } : {}}
+                    onClick={toggleReady}
+                    disabled={!myClass}
+                  >
+                    {players.find(p => p.name === myName)?.ready ? "✓ พร้อมแล้ว!" : "✓ พร้อมแล้ว"}
+                  </button>
+                )}
+                {isHost && (
+                  <button
+                    className="btn b-gold"
+                    onClick={startGame}
+                    disabled={!room || room.players.length < 3 || room.players.slice(1).some(p => !p.ready)}
+                  >
+                    🎮 เริ่มเกม!
+                  </button>
+                )}
+              </div>
+              {!myClass && <div className="pulse" style={{ marginTop: "8px" }}>เลือกอาชีพก่อนกดพร้อม</div>}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ═════════════ ROLE REVEAL ═════════════ */}
+      {/* FIX: ทุกคนเปิดโรลพร้อมกันได้ — ไม่ต้องรอตามลำดับ */}
+      <div id="rr" className={`screen${screen === "roles" ? " on" : ""}`}>
+        <div className="rrwrap">
+          <span style={{ fontSize: "40px", display: "block", animation: "float 3s ease-in-out infinite", filter: "drop-shadow(0 0 20px rgba(201,168,76,.5))", marginBottom: "8px" }}>♛</span>
+          <h2 className="deco" style={{ color: "var(--gold)", marginBottom: "4px", fontSize: "clamp(15px,3vw,20px)" }}>
+            รุ่งอรุณแห่งสงคราม
+          </h2>
+          <p style={{ fontSize: "12px", color: "var(--txt-m)", marginBottom: "14px" }}>
+            แตะไพ่เพื่อดูบทบาทลับของคุณ — ห้ามให้คนอื่นเห็น!
+          </p>
+
+          <div className="warn-box">⚠ ทุกคนสามารถเปิดดูบทบาทพร้อมกัน เมื่อทุกคนกดยืนยันแล้ว เกมจะเริ่มทันที</div>
+
+          {/* Flip card */}
+          <div className="flip-outer" onClick={() => !roleConfirmed && setFlipped(true)}>
+            <div className={`flip${flipped ? " f" : ""}`}>
+              <div className="fback">
+                <div className="fbglyph">⚜</div>
+                <p style={{ fontSize: "10px", color: "var(--txt-m)", marginTop: "10px" }}>แตะเพื่อดูบทบาท</p>
+              </div>
+              {roleDef && (
+                <div className={`ffront ff-${roleDef.id}`}>
+                  <div className="fico">{roleDef.ico}</div>
+                  <div className="fnm" style={{ color: roleDef.color }}>{roleDef.name}</div>
+                  <div className="fwhy">{roleDef.why}</div>
+                  <div className="fwin">🏆 {roleDef.win}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Confirm button (only after flip) */}
+          {flipped && !roleConfirmed && (
+            <div style={{ textAlign: "center", marginTop: "14px" }}>
+              <div style={{ fontSize: "11px", color: "var(--txt-m)", marginBottom: "8px" }}>
+                คุณคือ {roleDef?.ico} <span className="cinzel" style={{ color: "var(--gold)" }}>{roleDef?.name}</span>
+              </div>
+              <button className="btn b-gold" onClick={confirmRole}>
+                จำแล้ว — ยืนยัน ✓
+              </button>
+            </div>
+          )}
+
+          {roleConfirmed && (
+            <div style={{ textAlign: "center", marginTop: "14px" }}>
+              <div style={{ fontSize: "12px", color: "#4cc94c", marginBottom: "10px" }}>
+                ✅ คุณยืนยันแล้ว — รอผู้เล่นคนอื่น...
+              </div>
+            </div>
+          )}
+
+          {/* Show who has confirmed */}
+          {room && room.rolesReady && room.rolesReady.length > 0 && (
+            <div style={{ marginTop: "16px", width: "100%", maxWidth: "360px" }}>
+              <div style={{ fontSize: "11px", color: "var(--txt-m)", marginBottom: "6px", textAlign: "center" }}>
+                ยืนยันแล้ว {rolesReadyList.length}/{players.length} คน
+              </div>
+              <div className="confirmed-row">
+                {players.map((p, i) => {
+                  const confirmed = rolesReadyList.includes(p.name);
+                  return (
+                    <div key={i} className={`conf-chip${confirmed ? "" : " waiting"}`}>
+                      {confirmed ? "✓" : "○"} {p.name}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {!flipped && (
+            <div className="blink" style={{ marginTop: "16px" }}>แตะการ์ดเพื่อดูบทบาทของคุณ</div>
+          )}
+        </div>
+      </div>
+
+      {/* ═════════════ GAMEBOARD ═════════════ */}
+      <div id="gb" className={`screen${screen === "gameboard" ? " on" : ""}`}>
+        {/* Waiting overlay ถ้ายังไม่ all_roles_ready */}
+        {!allRolesReady && (
+          <div className="wait-overlay">
+            <div className="loading-spinner" />
+            <div className="loading-txt">รอผู้เล่นทุกคนยืนยันบทบาท...</div>
+            {room && (
+              <div className="confirmed-row">
+                {players.map((p, i) => {
+                  const confirmed = rolesReadyList.includes(p.name);
+                  return (
+                    <div key={i} className={`conf-chip${confirmed ? "" : " waiting"}`}>
+                      {confirmed ? "✓" : "○"} {p.name}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="lwrap" style={{ padding: "20px", maxWidth: "720px", margin: "0 auto" }}>
+          <div className="sbox" style={{ textAlign: "center", borderColor: "var(--gold)" }}>
+            <h2 className="cinzel" style={{ color: "var(--gold)", marginBottom: "4px" }}>🏰 สมรภูมิ: บัลลังก์เงา</h2>
+            <p style={{ fontSize: "12px", color: "var(--txt-m)" }}>เกมกำลังดำเนินอยู่ — ใช้กลยุทธ์ให้ดี!</p>
+          </div>
+
+          {/* My role card */}
+          {roleDef && (
+            <div className="sbox">
+              <div className="sh">📜 บทบาทลับของคุณ</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", background: "var(--s4)", padding: "12px", borderRadius: "8px", border: `1px solid ${roleDef.color}30` }}>
+                <span style={{ fontSize: "36px" }}>{roleDef.ico}</span>
+                <div>
+                  <h4 style={{ color: roleDef.color, fontFamily: "'Cinzel', serif", fontSize: "15px" }}>{roleDef.name}</h4>
+                  <p style={{ fontSize: "12px", color: "var(--txt-m)", marginTop: "3px" }}>{roleDef.why}</p>
+                  <p style={{ fontSize: "11px", color: "var(--gold-l)", marginTop: "4px" }}>🏆 {roleDef.win}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Player list */}
+          {room && (
+            <div className="sbox">
+              <div className="sh">🛡 นักรบในสมรภูมิ</div>
+              <table className="game-table">
+                <thead>
+                  <tr>
+                    <th>ผู้เล่น</th>
+                    <th>อาชีพ</th>
+                    <th>สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {room.players.map((p, i) => {
+                    const cls = p.class ? CLASSES[p.class] : null;
+                    return (
+                      <tr key={i} style={{ color: p.name === myName ? "var(--gold-l)" : "inherit" }}>
+                        <td>{p.name}{p.name === myName ? " (คุณ)" : ""}</td>
+                        <td>{cls ? `${cls.ico} ${cls.name}` : "—"}</td>
+                        <td style={{ color: "#4cc94c" }}>● มีชีวิต</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div style={{ textAlign: "center", marginTop: "20px" }}>
+            <button className="b-danger" onClick={leaveRoom}>✕ ออกจากเกม</button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
