@@ -1,167 +1,9 @@
-
-/
-Claude finished the response
-1780892569996_image.png
-1780892598811_image.png
-จากรูป
-
-แก้ UI ให้ไม่เห็น ที่บอกว่าเชื่อมต่อเซิฟข้ามเน็ตสำเร็จ
-แก้ปัญหาชื่อผู้เล่นไม่แสดงเมื่อกรอกชื่อและทำให้ UI ตอนกรกชื่อดูสวยด้วย
-11:24
-Let me look at the current code to understand the issues.
-
-
-Check the main component file
-Check the main component file
-Now I have a clear picture. Let me fix both issues: hide the cross-network connection message and fix the player name display + improve its UI.
-
-
-Viewed 2 files
-Viewed 2 files
-Now I have everything I need. Let me make the targeted fixes:
-
-Remove the "เชื่อมต่อกับ server ข้ามเน็ตสำเร็จ" banner
-Fix the joinRoom in browse tab — it uses prompt() which doesn't update joinName before calling joinRoom(r.code), so the name is blank. Replace with an inline modal name input.
-Improve the name input UI styling.
-
-Check the full title screen section to understand the WS badge block
-Check the full title screen section to understand the WS badge block
-Now I'll check the state declarations to add a joinModalRoom state for the browse-tab inline modal:
-
-
-Find state declarations section
-Find state declarations section
-Now I have everything. Let me make the three precise fixes:
-
-Fix 1: Remove the cross-network banner (lines 540-545) Fix 2: Replace the broken prompt() in browse rooms with an inline name modal state Fix 3: Improve the name input styling throughout
-
-
-Edited 2 files
-Edited 2 files
-Now fix the broken browse-room card click (replaces prompt() with state-driven modal) and add the inline name modal UI + improve name input styling:
-
-
-Replace prompt() with inline modal trigger in browse rooms
-Replace prompt() with inline modal trigger in browse rooms
-Now add the CSS for the name modal and improve name input styling. Let me find a good spot in the CSS block:
-
-
-Viewed a file, edited a file
-Viewed a file, edited a file
-Now add the modal JSX. Let me find where the TOAST render block ends to add the modal right before the title screen:
-
-
-Viewed 2 files, edited a file
-Viewed 2 files, edited a file
-Now fix the joinRoom function — currently it reads from joinName state but the browse path passes the name as a second argument. Let me check:
-
-
-Find joinRoom function definition
-Find joinRoom function definition
-The joinRoom function only takes codeArg and reads joinName state. The modal passes the name directly — I need to update joinRoom to accept an optional name argument:
-
-
-Update joinRoom to accept optional name argument from modal
-Update joinRoom to accept optional name argument from modal
-Now let's also improve the manual tab's name input styling to match the new polished look:
-
-
-Viewed 2 files, edited a file
-Viewed 2 files, edited a file
-Now copy the updated file to outputs:
-
-
-Ran a command, read a file
-Ran a command, read a file
-แก้ไขทั้งสองปัญหาแล้ว สรุปสิ่งที่เปลี่ยน:
-
-1. ซ่อนข้อความ "เชื่อมต่อกับ server ข้ามเน็ตสำเร็จ" ลบ div นั้นออกเลยจาก title screen — แสดงแค่ badge สถานะ WS เดิม (● เชื่อมต่อแล้ว) ซึ่งกระชับกว่า
-
-2. แก้ปัญหาชื่อผู้เล่นไม่แสดง (browse tab) เดิมใช้ window.prompt() ซึ่งมักถูกบล็อกในบราวเซอร์สมัยใหม่ และ return value ไม่ถูก sync ก่อนเรียก joinRoom() → แก้เป็น inline name modal ที่ pop up เมื่อกดห้อง
-
-3. UI ช่องกรอกชื่อใหม่ (ทั้ง modal และ manual tab)
-
-กล่อง modal มี animation slide-in, รหัสห้อง + host name แสดงชัดเจน
-input ขนาดใหญ่ขึ้น (font 15px), border glow เมื่อ focus, มี char counter
-ปุ่มยกเลิก/เข้าร่วมเรียงแนวนอน กด Enter ได้ทันที
-manual tab ก็ใช้ nm-input-wrap style เดียวกันให้ดู consistent
-
-Shadowthrone ws
-Code · JSX 
-
-import { useState, useEffect, useRef, useCallback } from "react"; // ─── CONFIG: Dynamic WebSocket URL ─────────────────────────────────────────── // Priority: 1) ?server= query param 2) localStorage 3) same-host /ws function getWsUrl() { try { // ✅ FIX 1: รองรับ ?server=xxx.trycloudf
-
-pasted
-
-11:29
-มี syntax error ในไฟล์ที่แก้ไป — ตรงส่วน browse rooms มีวงเล็บเกิน {rooms.map(...)} ล้อมด้วย {} แบบ object แทนที่จะเป็น expression ปกติ มาแก้ให้ถูกต้องเลย
-
-
-Find the broken browse rooms section
-Find the broken browse rooms section
-เจอแล้ว — บรรทัด 817 มี {rooms.map(...)} ล้อมด้วย {} เกิน และบรรทัด 833 ปิด ) ผิดที่ แก้ทันที:
-
-
-Fix the syntax error - remove extra curly braces around rooms.map and fix closing parenthesis
-Fix the syntax error - remove extra curly braces around rooms.map and fix closing parenthesis
-ตรวจสอบบริเวณนั้นอีกครั้งให้แน่ใจว่าถูกต้อง:
-
-
-Verify the fix looks correct
-Verify the fix looks correct
-ถูกต้องแล้ว ตอนนี้ structure เป็น rooms.length === 0 ? (...) : (rooms.map(...)) ซึ่ง valid JSX ทั้งหมด คัดลอกไปที่ outputs:
-
-
-Ran a command, read a file
-Ran a command, read a file
-แก้ syntax error เรียบร้อยแล้ว — ปัญหาคือ {rooms.map(...)} ในตำแหน่ง ternary expression ซึ่ง JavaScript ตีความว่าเป็น object literal แทนที่จะเป็น expression เลยเกิด error ตอน compile
-
-สิ่งที่แก้: เปลี่ยนจาก : ( {rooms.map(...)} ) → : ( rooms.map(...) ) — ลบ {} ที่ครอบ .map() ออกเพียงอย่างเดียว ไม่มีผลกระทบกับฟีเจอร์ใดๆ ที่ทำไว้ก่อนหน้า
-
-
-Shadowthrone ws
-Code · JSX 
-
-Want to be notified when Claude responds?
-
-
-
-
-
-Claude is AI and can make mistakes. Please double-check responses.
-
-
-raw
-Shadowthrone ws · JSX
 import { useState, useEffect, useRef, useCallback } from "react";
- 
-// ─── CONFIG: Dynamic WebSocket URL ───────────────────────────────────────────
-// Priority: 1) ?server= query param  2) localStorage  3) same-host /ws
-function getWsUrl() {
-  try {
-    // ✅ FIX 1: รองรับ ?server=xxx.trycloudflare.com ใน URL
-    // เพื่อนคลิกลิงก์จาก host แล้ว connect server ได้ทันที
-    const params = new URLSearchParams(window.location.search);
-    const serverParam = params.get("server");
-    if (serverParam) {
-      // ถ้า host ส่ง ?server=xxxx.trycloudflare.com → แปลงเป็น wss://
-      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const url = serverParam.startsWith("ws") ? serverParam
-        : `${proto}//${serverParam}`;
-      // บันทึกลง localStorage ด้วยเพื่อไม่ต้องส่ง query ซ้ำ
-      try { localStorage.setItem("sot_ws_url", url); } catch {}
-      return url;
-    }
-  } catch {}
-  try {
-    const saved = localStorage.getItem("sot_ws_url");
-    if (saved && saved.startsWith("ws")) return saved;
-  } catch {}
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return "wss://sot-server-0te4.onrender.com";
-}
-const WS_URL = getWsUrl();
- 
+
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+// เปลี่ยน IP ตามเครือข่ายของคุณ (หรือใช้ localhost ถ้าเล่นเครื่องเดียวกัน)
+const WS_URL = "ws://localhost:3001";
+
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const ROLES = {
   king:     { id: "king",     ico: "👑", name: "พระราชา",  color: "#c9a84c",
@@ -173,7 +15,7 @@ const ROLES = {
   commoner: { id: "commoner", ico: "🧑‍🌾", name: "ราษฎร", color: "#4cc94c",
               why: "ไม่อยู่ฝ่ายใด สะสมทรัพย์สิน",    win: "ทอง 10 เหรียญ หรือ Lv.5" },
 };
- 
+
 const CLASSES = {
   warrior: { id:"warrior", ico:"⚔️",  name:"นักรบ",    evo:"→ คนเถื่อน → เบอร์เซิกเกอร์", hp:12, mana:4,  move:3, s:{STR:5,DEX:2,VIT:4,INT:1}, ability:"โจมตีกว้าง 3 เป้าหมาย",    passive:"ทนดาเมจสุดท้าย 1 ครั้ง" },
   knight:  { id:"knight",  ico:"🛡️",  name:"อัศวิน",   evo:"→ พาราดิน → โรยัลไนท์",        hp:14, mana:5,  move:2, s:{STR:4,DEX:2,VIT:5,INT:2}, ability:"พระบัญชา: สั่งย้ายผู้เล่น", passive:"ลดดาเมจรับ 1 ตลอดเวลา" },
@@ -182,7 +24,7 @@ const CLASSES = {
   rogue:   { id:"rogue",   ico:"🗡️",  name:"โจร",      evo:"→ นักฆ่า → จอมอุบาย",           hp:9,  mana:7,  move:5, s:{STR:3,DEX:6,VIT:3,INT:2}, ability:"โจมตีด้านหลัง ATK×2",     passive:"หลบ 20% เสมอ" },
   cleric:  { id:"cleric",  ico:"✨",  name:"นักบวช",   evo:"→ บาทหลวง → บิชอป",             hp:10, mana:10, move:2, s:{STR:1,DEX:2,VIT:4,INT:6}, ability:"ฟื้น HP +4 ให้พันธมิตร",   passive:"ฟื้น HP +1 ทุกต้นเทิร์น" },
 };
- 
+
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700&family=Sarabun:wght@300;400;600;700&display=swap');
@@ -198,7 +40,7 @@ body{background:var(--stone);color:var(--txt);font-family:'Sarabun',sans-serif;f
 .deco{font-family:'Cinzel Decorative',serif}
 .screen{display:none;min-height:100vh;flex-direction:column}
 .screen.on{display:flex}
- 
+
 /* ── TITLE ──────────────────────────────────────────────────── */
 #t{align-items:center;justify-content:center;text-align:center;
   background:radial-gradient(ellipse 100% 80% at 50% 0%,#1a1208,var(--stone) 70%);
@@ -225,7 +67,7 @@ body{background:var(--stone);color:var(--txt);font-family:'Sarabun',sans-serif;f
 .mico{font-size:32px;display:block;margin-bottom:6px}
 .mnm{font-family:'Cinzel',serif;font-size:12px;color:var(--gold);margin-bottom:3px}
 .mdesc{font-size:10px;color:var(--txt-m);line-height:1.5}
- 
+
 /* ── BUTTONS ─────────────────────────────────────────────────── */
 .btn{font-family:'Cinzel',serif;cursor:pointer;border:none;border-radius:var(--r);transition:all .2s;letter-spacing:.04em;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .b-gold{background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#0d0b09;padding:11px 28px;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(201,168,76,.25)}
@@ -238,12 +80,12 @@ body{background:var(--stone);color:var(--txt);font-family:'Sarabun',sans-serif;f
 .b-sm:disabled{opacity:.3;cursor:not-allowed}
 .b-danger{background:rgba(139,26,26,.5);color:#ffaaaa;border:1px solid rgba(139,26,26,.7);padding:7px 18px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Sarabun',sans-serif;transition:all .15s}
 .b-danger:hover{background:rgba(180,30,30,.8)}
- 
+
 /* ── FORMS ───────────────────────────────────────────────────── */
 input,select{background:var(--s4);color:var(--txt);border:1px solid rgba(201,168,76,.2);border-radius:6px;padding:8px 12px;font-family:'Sarabun',sans-serif;font-size:13px;outline:none;width:100%}
 input:focus,select:focus{border-color:var(--gold)}
 input::placeholder{color:var(--txt-d)}
- 
+
 /* ── LAYOUT ──────────────────────────────────────────────────── */
 .sbox{background:var(--s3);border:1px solid rgba(201,168,76,.12);border-radius:12px;padding:16px;margin-bottom:12px}
 .sh{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.18em;color:var(--txt-m);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
@@ -251,7 +93,7 @@ input::placeholder{color:var(--txt-d)}
 .row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .row label{font-size:12px;color:var(--txt-m);min-width:100px;flex-shrink:0}
 .row input,.row select{flex:1}
- 
+
 /* ── LOBBY ───────────────────────────────────────────────────── */
 #l{background:var(--s2);align-items:center;justify-content:flex-start;padding:20px;overflow-y:auto}
 .lwrap{max-width:720px;width:100%;margin:0 auto}
@@ -268,19 +110,19 @@ input::placeholder{color:var(--txt-d)}
 .slot.empty{opacity:.4}
 .sn{font-size:13px;font-weight:600;margin-bottom:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .sc{font-size:10px;color:var(--txt-m);margin-bottom:3px}
- 
+
 /* ready bar */
 .rbar{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px}
 .rdot{width:10px;height:10px;border-radius:50%;background:var(--s4);border:1px solid var(--txt-d);transition:all .3s}
 .rdot.on{background:#4cc94c;border-color:#4cc94c;box-shadow:0 0 6px rgba(76,201,76,.5)}
- 
+
 /* tags */
 .tag{font-size:9px;padding:2px 8px;border-radius:4px}
 .tag-you{background:rgba(201,168,76,.2);color:var(--gold)}
 .tag-host{background:rgba(201,168,76,.3);color:var(--gold-l)}
 .tag-ready{background:rgba(42,122,53,.3);color:#4cc94c}
 .tag-roleok{background:rgba(76,201,76,.15);color:#4cc94c}
- 
+
 /* ── ROOM LIST ───────────────────────────────────────────────── */
 #rl{background:var(--s2);align-items:center;justify-content:flex-start;padding:20px;overflow-y:auto}
 .rlwrap{max-width:600px;width:100%;margin:0 auto}
@@ -298,10 +140,10 @@ input::placeholder{color:var(--txt-d)}
 .join-box{background:var(--s3);border:1px solid rgba(201,168,76,.2);border-radius:12px;padding:20px;max-width:340px;margin:0 auto;text-align:center}
 .join-title{font-family:'Cinzel',serif;font-size:14px;color:var(--gold);margin-bottom:12px}
 .join-input{text-align:center;letter-spacing:.2em;font-family:'Cinzel',serif;font-size:16px;text-transform:uppercase;margin-bottom:12px}
- 
+
 /* ── CREATE SCREEN ───────────────────────────────────────────── */
 #cr{background:var(--s2);align-items:center;justify-content:center;padding:20px}
- 
+
 /* visibility toggle */
 .vis-toggle{display:flex;gap:8px;margin-bottom:8px}
 .vis-opt{flex:1;background:var(--s4);border:1.5px solid rgba(201,168,76,.15);border-radius:8px;padding:10px;cursor:pointer;text-align:center;transition:all .2s}
@@ -310,7 +152,7 @@ input::placeholder{color:var(--txt-d)}
 .vis-ico{font-size:20px;margin-bottom:4px}
 .vis-nm{font-family:'Cinzel',serif;font-size:11px;color:var(--gold)}
 .vis-desc{font-size:9px;color:var(--txt-m);margin-top:2px;line-height:1.4}
- 
+
 /* ── CLASS GRID ──────────────────────────────────────────────── */
 .cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .ccard{background:var(--s4);border:1.5px solid rgba(201,168,76,.12);border-radius:10px;padding:12px 8px;cursor:pointer;transition:all .2s;text-align:center}
@@ -322,7 +164,7 @@ input::placeholder{color:var(--txt-d)}
 .cs{font-size:8px;background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px;color:var(--txt-m)}
 .cab{font-size:9px;color:rgba(201,168,76,.7);line-height:1.4;text-align:left}
 .cpas{font-size:8px;color:rgba(100,180,100,.7);line-height:1.3;margin-top:2px;text-align:left}
- 
+
 /* ── ROLE REVEAL ─────────────────────────────────────────────── */
 #rr{background:radial-gradient(ellipse at 50% 50%,#0d0a05,#040302);align-items:center;justify-content:center}
 .rrwrap{display:flex;flex-direction:column;align-items:center;padding:24px 20px;min-height:100vh;justify-content:center}
@@ -346,16 +188,16 @@ input::placeholder{color:var(--txt-d)}
 .blink{animation:blink 1.4s ease-in-out infinite;color:var(--txt-m);font-size:11px}
 @keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
 .warn-box{font-size:10px;color:rgba(255,180,50,.8);background:rgba(200,120,0,.1);border:1px solid rgba(200,120,0,.3);border-radius:6px;padding:7px 14px;margin-bottom:12px;text-align:center}
- 
+
 /* players-confirmed display */
 .confirmed-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
 .conf-chip{font-size:10px;padding:3px 10px;border-radius:20px;background:rgba(42,122,53,.2);border:1px solid rgba(42,122,53,.5);color:#4cc94c}
 .conf-chip.waiting{background:rgba(60,50,30,.3);border-color:rgba(201,168,76,.2);color:var(--txt-m)}
- 
+
 /* waiting overlay for gameboard */
 .wait-overlay{position:fixed;inset:0;background:rgba(13,11,8,.92);display:flex;flex-direction:column;
   align-items:center;justify-content:center;z-index:50;gap:16px}
- 
+
 /* ── LOADING / TOAST ─────────────────────────────────────────── */
 .loading-overlay{position:fixed;inset:0;background:rgba(13,11,8,.85);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px}
 .loading-spinner{width:40px;height:40px;border:3px solid var(--gold-d);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
@@ -366,130 +208,100 @@ input::placeholder{color:var(--txt-d)}
   font-size:13px;font-family:'Sarabun',sans-serif;z-index:9999;
   transition:opacity .3s,transform .3s;pointer-events:none}
 .toast.hide{opacity:0;transform:translateX(-50%) translateY(8px)}
- 
+
 /* WS badge */
 .ws-badge{font-size:10px;padding:3px 10px;border-radius:20px;font-family:'Sarabun',sans-serif;display:inline-block}
 .ws-ok{background:rgba(42,122,53,.2);color:#4cc94c;border:1px solid rgba(42,122,53,.4)}
 .ws-connecting{background:rgba(201,168,76,.1);color:var(--gold);border:1px solid rgba(201,168,76,.3);animation:pulse .9s ease-in-out infinite}
 .ws-err{background:rgba(139,26,26,.2);color:#ffaaaa;border:1px solid rgba(139,26,26,.4)}
 @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
- 
+
 /* game board */
 #gb{background:var(--stone);padding:20px;overflow-y:auto}
 .game-table{width:100%;border-collapse:collapse;margin:14px 0}
 .game-table th{background:rgba(201,168,76,.12);color:var(--gold-l);padding:8px 10px;font-size:12px;text-align:left;font-family:'Cinzel',serif}
 .game-table td{padding:10px 8px;border-bottom:1px solid rgba(201,168,76,.08);font-size:13px}
 .pulse{animation:pulse .9s ease-in-out infinite;font-size:11px;color:var(--txt-m);text-align:center}
- 
-/* ── NAME INPUT MODAL ─────────────────────────────────────────── */
-.name-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:800;padding:20px}
-.name-modal{background:var(--s2);border:1px solid rgba(201,168,76,.35);border-radius:16px;padding:28px 24px;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.8);animation:modal-in .2s ease-out}
-@keyframes modal-in{from{opacity:0;transform:scale(.92) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.nm-room-ico{font-size:36px;margin-bottom:8px;display:block}
-.nm-room-code{font-family:'Cinzel',serif;font-size:18px;color:var(--gold);letter-spacing:.25em;margin-bottom:2px}
-.nm-room-host{font-size:11px;color:var(--txt-m);margin-bottom:16px}
-.nm-divider{width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(201,168,76,.25),transparent);margin-bottom:16px}
-.nm-label{font-size:11px;color:var(--txt-m);margin-bottom:6px;text-align:left;letter-spacing:.06em}
-.nm-input-wrap{position:relative;margin-bottom:16px}
-.nm-input-wrap input{padding:12px 42px 12px 16px;font-size:15px;border-radius:10px;border:1.5px solid rgba(201,168,76,.25);background:var(--s4);color:var(--txt);font-family:'Sarabun',sans-serif;width:100%;transition:border-color .2s,box-shadow .2s;letter-spacing:.03em}
-.nm-input-wrap input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.12);outline:none}
-.nm-input-wrap input::placeholder{color:var(--txt-d);font-size:13px}
-.nm-char-count{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--txt-d);pointer-events:none}
-.nm-actions{display:flex;gap:8px}
-.nm-actions .btn{flex:1;padding:11px}
-.nm-cancel{background:rgba(255,255,255,.05);color:var(--txt-m);border:1px solid rgba(255,255,255,.1);border-radius:10px;cursor:pointer;font-family:'Sarabun',sans-serif;font-size:13px;padding:11px;flex:1;transition:all .15s}
-.nm-cancel:hover{background:rgba(255,255,255,.1)}
 `;
- 
- 
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function ShadowThrone() {
   // ── Screen state ──────────────────────────────────────────────────────────
   const [screen, setScreen] = useState("title");
   const [tab, setTab] = useState("browse");
- 
+
   // ── WebSocket ─────────────────────────────────────────────────────────────
   const wsRef = useRef(null);
   const [wsStatus, setWsStatus] = useState("connecting");
- 
+
   // ── Identity ──────────────────────────────────────────────────────────────
   const [myName, setMyName] = useState("");
   const [myClass, setMyClass] = useState("");
   const myNameRef = useRef(""); // stable ref to avoid stale closure bugs
- 
+
   // ── Room state ────────────────────────────────────────────────────────────
   const [room, _setRoom] = useState(null);
   const roomRef = useRef(null);
   const setRoom = (r) => { roomRef.current = r; _setRoom(r); };
- 
+
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadMsg, setLoadMsg] = useState("");
- 
+
   // ── Create form ───────────────────────────────────────────────────────────
   const [newName, setNewName] = useState("");
   const [newCount, setNewCount] = useState(4);
   const [newMode, setNewMode] = useState("standard");
   const [newVis, setNewVis] = useState("public"); // "public" | "private"
- 
+
   // ── Join form ─────────────────────────────────────────────────────────────
   const [joinCode, setJoinCode] = useState("");
   const [joinName, setJoinName] = useState("");
- 
-  // ── Browse-room inline name modal ─────────────────────────────────────────
-  const [joinModal, setJoinModal] = useState(null); // { code, hostName } | null
-  const [joinModalName, setJoinModalName] = useState("");
- 
+
   // ── Role reveal ───────────────────────────────────────────────────────────
   const [flipped, setFlipped] = useState(false);
   const [myRole, setMyRole] = useState(null);
   const [roleConfirmed, setRoleConfirmed] = useState(false); // I confirmed
   const [allRolesReady, setAllRolesReady] = useState(false); // everyone confirmed
- 
-  // ── Server Config (สำหรับ Cloudflare Tunnel) ─────────────────────────────
-  const [serverUrlInput, setServerUrlInput] = useState(
-    (() => { try { return localStorage.getItem("sot_ws_url") || ""; } catch { return ""; } })()
-  );
-  const [showServerConfig, setShowServerConfig] = useState(false);
- 
+
   // ── Toast ─────────────────────────────────────────────────────────────────
   const [toast, setToast] = useState({ msg: "", show: false });
   const showToast = useCallback((msg) => {
     setToast({ msg, show: true });
     setTimeout(() => setToast(t => ({ ...t, show: false })), 2600);
   }, []);
- 
+
   // ── WebSocket connection with auto-reconnect ───────────────────────────────
   const wsSend = useCallback((data) => {
     const ws = wsRef.current;
     if (ws && ws.readyState === 1) ws.send(JSON.stringify(data));
   }, []);
- 
+
   useEffect(() => {
     let alive = true;
     let ws;
     let reconnectTimer;
- 
+
     function connect() {
       if (!alive) return;
       setWsStatus("connecting");
       ws = new WebSocket(WS_URL);
       wsRef.current = ws;
- 
+
       ws.onopen = () => {
         if (!alive) return;
         setWsStatus("ok");
         // Re-request room list if on join screen
         if (screen === "join") wsSend({ type: "list_rooms" });
       };
- 
+
       ws.onmessage = (e) => {
         if (!alive) return;
         let msg;
         try { msg = JSON.parse(e.data); } catch { return; }
- 
+
         switch (msg.type) {
- 
+
           // ── Server assigned us a slot ──────────────────────────────────
           case "joined":
             setRoom(msg.room);
@@ -500,11 +312,11 @@ export default function ShadowThrone() {
               : "✅ เข้าห้องสำเร็จ!"
             );
             break;
- 
+
           // ── Lobby / room state changed ─────────────────────────────────
           case "room_update": {
             setRoom(msg.room);
- 
+
             // If game just started → go to role reveal
             if (msg.room.status === "started" && screen !== "roles" && screen !== "gameboard") {
               // Find MY role index
@@ -521,39 +333,39 @@ export default function ShadowThrone() {
             }
             break;
           }
- 
+
           // ── Room list for browse tab ───────────────────────────────────
           case "room_list":
             setRooms(msg.rooms || []);
             break;
- 
+
           // ── All players confirmed their role → open game board ─────────
           case "all_roles_ready":
             setAllRolesReady(true);
             // Automatically transition (no button needed)
             setScreen("gameboard");
             break;
- 
+
           case "kicked":
             showToast("คุณถูกเตะออกจากห้อง");
             setRoom(null); setMyClass(""); setMyRole(null); setScreen("title");
             break;
- 
+
           case "room_closed":
             showToast("⚠ " + (msg.reason === "host_left" ? "Host ออกจากห้องแล้ว" : "ห้องถูกปิด"));
             setRoom(null); setMyClass(""); setMyRole(null); setScreen("title");
             break;
- 
+
           case "error":
             showToast("❌ " + msg.msg);
             setLoading(false);
             break;
- 
+
           default:
             break;
         }
       };
- 
+
       ws.onclose = () => {
         if (!alive) return;
         setWsStatus("error");
@@ -561,7 +373,7 @@ export default function ShadowThrone() {
       };
       ws.onerror = () => { if (alive) setWsStatus("error"); };
     }
- 
+
     connect();
     return () => {
       alive = false;
@@ -570,7 +382,7 @@ export default function ShadowThrone() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showToast]);
- 
+
   // ── Browse: auto-refresh when on join tab ─────────────────────────────────
   const browseRooms = useCallback(() => wsSend({ type: "list_rooms" }), [wsSend]);
   useEffect(() => {
@@ -579,27 +391,14 @@ export default function ShadowThrone() {
     const t = setInterval(browseRooms, 4000);
     return () => clearInterval(t);
   }, [screen, browseRooms]);
- 
-  // ── Save Server URL ───────────────────────────────────────────────────────
-  const saveServerUrl = () => {
-    try {
-      const url = serverUrlInput.trim();
-      if (url) {
-        localStorage.setItem("sot_ws_url", url);
-      } else {
-        localStorage.removeItem("sot_ws_url");
-      }
-      window.location.reload();
-    } catch {}
-  };
- 
+
   // ─── ACTIONS ──────────────────────────────────────────────────────────────
   const saveName = (name) => {
     const n = name.trim();
     setMyName(n);
     myNameRef.current = n;
   };
- 
+
   const createRoom = () => {
     const name = newName.trim() || "ผู้เล่น 1";
     saveName(name);
@@ -609,10 +408,10 @@ export default function ShadowThrone() {
     // NOTE: code is generated SERVER-SIDE now — do NOT send a code
     wsSend({ type: "create_room", playerName: name, maxPlayers: newCount, mode: newMode, visibility: newVis });
   };
- 
-  const joinRoom = (codeArg, nameArg) => {
+
+  const joinRoom = (codeArg) => {
     const code = (codeArg || joinCode).trim().toUpperCase();
-    const name = (nameArg || joinName).trim() || "ผู้เล่น";
+    const name = joinName.trim() || "ผู้เล่น";
     if (!code) { showToast("กรอกรหัสห้องก่อน"); return; }
     saveName(name);
     setLoading(true);
@@ -620,20 +419,20 @@ export default function ShadowThrone() {
     setMyClass("");
     wsSend({ type: "join_room", code, playerName: name });
   };
- 
+
   const pickClass = (clsId) => {
     setMyClass(clsId);
     wsSend({ type: "pick_class", classId: clsId });
   };
- 
+
   const toggleReady = () => {
     if (!myClass) { showToast("เลือกอาชีพก่อน"); return; }
     wsSend({ type: "toggle_ready" });
   };
- 
+
   const startGame = () => wsSend({ type: "start_game" });
   const kickPlayer = (idx) => wsSend({ type: "kick_player", playerIdx: idx });
- 
+
   // FIX: proper leave — notify server first so it can clean up
   const leaveRoom = () => {
     wsSend({ type: "leave_room" });
@@ -644,7 +443,7 @@ export default function ShadowThrone() {
     setAllRolesReady(false);
     setScreen("title");
   };
- 
+
   // ── Role reveal confirm ────────────────────────────────────────────────────
   // FIX: each player confirms independently; server tracks progress
   const confirmRole = () => {
@@ -653,27 +452,27 @@ export default function ShadowThrone() {
       wsSend({ type: "role_confirmed", playerName: myNameRef.current });
     }
   };
- 
+
   // ── Derived values ────────────────────────────────────────────────────────
   const players = room?.players || [];
   const myIdx = players.findIndex(p => p.name === myName);
   const isHost = myIdx === 0;
   const readyCount = players.filter(p => p.ready || p.host).length;
   const rolesReadyList = room?.rolesReady || [];
- 
+
   const roleDef = myRole ? ROLES[myRole] : null;
- 
+
   // ── WS status badge ───────────────────────────────────────────────────────
   const wsBadge =
     wsStatus === "ok"         ? <span className="ws-badge ws-ok">● เชื่อมต่อแล้ว</span>
     : wsStatus === "connecting" ? <span className="ws-badge ws-connecting">○ กำลังเชื่อมต่อ...</span>
     :                             <span className="ws-badge ws-err">✕ ไม่ได้เชื่อมต่อ — รีสตาร์ท server?</span>;
- 
+
   // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
     <>
       <style>{css}</style>
- 
+
       {/* LOADING */}
       {loading && (
         <div className="loading-overlay">
@@ -681,60 +480,10 @@ export default function ShadowThrone() {
           <div className="loading-txt">{loadMsg}</div>
         </div>
       )}
- 
+
       {/* TOAST */}
       <div className={`toast${toast.show ? "" : " hide"}`}>{toast.msg}</div>
- 
-      {/* ── JOIN NAME MODAL (browse tab) ──────────────────────────── */}
-      {joinModal && (
-        <div className="name-modal-backdrop" onClick={() => setJoinModal(null)}>
-          <div className="name-modal" onClick={e => e.stopPropagation()}>
-            <span className="nm-room-ico">🏰</span>
-            <div className="nm-room-code">{joinModal.code}</div>
-            <div className="nm-room-host">
-              👑 {joinModal.hostName} &ensp;·&ensp;
-              {joinModal.mode === "quick" ? "โหมดด่วน" : joinModal.mode === "epic" ? "มหากาพย์" : "มาตรฐาน"}
-              &ensp;·&ensp; {joinModal.players}/{joinModal.maxPlayers} คน
-            </div>
-            <div className="nm-divider" />
-            <div className="nm-label">ชื่อที่ใช้ในเกม</div>
-            <div className="nm-input-wrap">
-              <input
-                autoFocus
-                value={joinModalName}
-                onChange={e => setJoinModalName(e.target.value.slice(0, 12))}
-                placeholder="กรอกชื่อของคุณ..."
-                onKeyDown={e => {
-                  if (e.key === "Enter" && joinModalName.trim()) {
-                    const name = joinModalName.trim();
-                    setJoinModal(null);
-                    setJoinName(name);
-                    joinRoom(joinModal.code, name);
-                  }
-                  if (e.key === "Escape") setJoinModal(null);
-                }}
-              />
-              <span className="nm-char-count">{joinModalName.length}/12</span>
-            </div>
-            <div className="nm-actions">
-              <button className="nm-cancel" onClick={() => setJoinModal(null)}>ยกเลิก</button>
-              <button
-                className="btn b-gold"
-                disabled={!joinModalName.trim() || wsStatus !== "ok"}
-                onClick={() => {
-                  const name = joinModalName.trim();
-                  setJoinModal(null);
-                  setJoinName(name);
-                  joinRoom(joinModal.code, name);
-                }}
-              >
-                เข้าร่วม ⚔️
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
- 
+
       {/* ═══════════════════ TITLE ═══════════════════ */}
       <div id="t" className={`screen${screen === "title" ? " on" : ""}`}>
         <div className="stars" />
@@ -744,97 +493,7 @@ export default function ShadowThrone() {
           <div className="tsub">Shadow of Throne</div>
           <div className="divl" />
           <p className="lore">ในยุคแห่งความแตกแยก บัลลังก์รอผู้พิชิต<br />ใช้เล่ห์เหลี่ยม อาวุธ เวทย์มนตร์ และโชคชะตา</p>
-          <div style={{ marginBottom: "16px" }}>
-            {wsBadge}
-            <div style={{ marginTop: "8px" }}>
-              <button
-                className="b-sm"
-                onClick={() => setShowServerConfig(v => !v)}
-                style={{ fontSize: "10px" }}
-              >
-                🌐 {showServerConfig ? "ซ่อน" : "ตั้งค่า"} Server URL
-              </button>
-            </div>
-            {showServerConfig && (
-              <div style={{
-                marginTop: "10px",
-                background: "var(--s3)",
-                border: "1px solid rgba(201,168,76,.2)",
-                borderRadius: "10px",
-                padding: "14px",
-                maxWidth: "340px",
-                width: "100%",
-                textAlign: "left",
-              }}>
-                <div style={{ fontSize: "11px", color: "var(--gold)", marginBottom: "6px", fontFamily: "'Cinzel',serif" }}>
-                  🌐 Server URL (สำหรับเล่นข้ามอินเทอร์เน็ต)
-                </div>
-                <div style={{ fontSize: "10px", color: "var(--txt-m)", marginBottom: "8px", lineHeight: 1.8 }}>
-                  <b style={{ color: "var(--gold)" }}>วิธีเล่นข้ามอินเทอร์เน็ต:</b><br />
-                  1️⃣ host รัน <code style={{ color: "var(--gold-l)", fontSize: "9px" }}>cloudflared tunnel --url http://localhost:3001</code><br />
-                  2️⃣ คัดลอก URL ที่ได้ เช่น <code style={{ color: "var(--gold-l)", fontSize: "9px" }}>https://abc.trycloudflare.com</code><br />
-                  3️⃣ ใส่ด้านล่างนี้เป็น <code style={{ color: "var(--gold-l)", fontSize: "9px" }}>wss://abc.trycloudflare.com</code><br />
-                  4️⃣ กด "บันทึก" แล้วส่งลิงก์แชร์ให้เพื่อน ✨
-                </div>
-                <input
-                  value={serverUrlInput}
-                  onChange={e => setServerUrlInput(e.target.value)}
-                  placeholder="wss://xxx.trycloudflare.com/ws  (หรือเว้นว่าง)"
-                  style={{ marginBottom: "8px", fontSize: "11px" }}
-                />
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    className="btn b-gold"
-                    style={{ flex: 1, padding: "8px", fontSize: "11px" }}
-                    onClick={saveServerUrl}
-                  >
-                    💾 บันทึก &amp; รีโหลด
-                  </button>
-                  {serverUrlInput && (
-                    <button
-                      className="b-sm"
-                      onClick={() => {
-                        setServerUrlInput("");
-                        localStorage.removeItem("sot_ws_url");
-                      }}
-                      style={{ fontSize: "10px" }}
-                    >
-                      ✕ ล้าง
-                    </button>
-                  )}
-                </div>
-                <div style={{ marginTop: "8px", fontSize: "9px", color: "var(--txt-d)" }}>
-                  URL ปัจจุบัน: {WS_URL}
-                </div>
-                {/* ✅ FIX 3: แสดงลิงก์แชร์สำหรับเพื่อน */}
-                {WS_URL && !WS_URL.includes("localhost") && (
-                  <div style={{ marginTop: "10px", background: "rgba(76,201,76,.08)", border: "1px solid rgba(76,201,76,.25)", borderRadius: "8px", padding: "10px" }}>
-                    <div style={{ fontSize: "10px", color: "#4cc94c", marginBottom: "6px", fontWeight: 600 }}>
-                      🔗 ลิงก์สำหรับเพื่อนต่างเน็ต
-                    </div>
-                    <div style={{ fontSize: "9px", color: "var(--txt-m)", marginBottom: "6px", lineHeight: 1.6 }}>
-                      ส่งลิงก์นี้ให้เพื่อน — คลิกแล้วเข้าเกมได้ทันที ไม่ต้องกรอก URL เอง
-                    </div>
-                    <div style={{ fontSize: "9px", color: "var(--gold-l)", background: "rgba(0,0,0,.3)", padding: "5px 8px", borderRadius: "4px", wordBreak: "break-all", marginBottom: "6px" }}>
-                      {(() => {
-                        const serverHost = WS_URL.replace(/^wss?:\/\//, "").replace(/\/ws\/?$/, "");
-                        return `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(serverHost)}`;
-                      })()}
-                    </div>
-                    <button className="b-sm" style={{ width: "100%", background: "rgba(76,201,76,.2)", borderColor: "rgba(76,201,76,.4)", color: "#4cc94c" }}
-                      onClick={() => {
-                        const serverHost = WS_URL.replace(/^wss?:\/\//, "").replace(/\/ws\/?$/, "");
-                        const shareUrl = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(serverHost)}`;
-                        navigator.clipboard?.writeText(shareUrl).catch(() => {});
-                        setShowServerConfig(false);
-                      }}>
-                      📋 คัดลอกลิงก์
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <div style={{ marginBottom: "16px" }}>{wsBadge}</div>
           <div className="mcards">
             <div className="mcard" onClick={() => setScreen("create")}>
               <span className="mico">🏰</span>
@@ -849,7 +508,7 @@ export default function ShadowThrone() {
           </div>
         </div>
       </div>
- 
+
       {/* ═══════════════ CREATE ROOM ═══════════════ */}
       <div id="cr" className={`screen${screen === "create" ? " on" : ""}`}>
         <div style={{ maxWidth: "440px", width: "100%", padding: "20px" }}>
@@ -857,10 +516,10 @@ export default function ShadowThrone() {
             <button className="b-sm" onClick={() => setScreen("title")}>← กลับ</button>
             <h2 className="cinzel" style={{ fontSize: "18px", color: "var(--gold)" }}>🏰 สร้างห้องใหม่</h2>
           </div>
- 
+
           <div className="sbox">
             <div className="sh">⚙ ตั้งค่าห้อง</div>
- 
+
             <div className="row">
               <label>ชื่อของคุณ:</label>
               <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="ชื่อ Host" maxLength={12} />
@@ -882,7 +541,7 @@ export default function ShadowThrone() {
                 <option value="epic">มหากาพย์ (8 เฟส)</option>
               </select>
             </div>
- 
+
             {/* ✨ NEW: visibility toggle */}
             <div style={{ marginBottom: "8px" }}>
               <div style={{ fontSize: "12px", color: "var(--txt-m)", marginBottom: "6px" }}>ประเภทห้อง:</div>
@@ -899,12 +558,12 @@ export default function ShadowThrone() {
                 </div>
               </div>
             </div>
- 
+
             <div style={{ fontSize: "10px", color: "var(--txt-m)", background: "rgba(201,168,76,.05)", padding: "8px 10px", borderRadius: "6px", border: "1px solid rgba(201,168,76,.15)" }}>
               🎲 รหัสห้องจะถูกสร้างโดยอัตโนมัติ — แชร์ให้เพื่อนเพื่อเข้าร่วม
             </div>
           </div>
- 
+
           <div style={{ textAlign: "center", marginTop: "8px" }}>
             <button className="btn b-gold" onClick={createRoom} disabled={!newName.trim() || wsStatus !== "ok"}>
               🏰 สร้างห้องเลย
@@ -912,7 +571,7 @@ export default function ShadowThrone() {
           </div>
         </div>
       </div>
- 
+
       {/* ═══════════════ JOIN / BROWSE ═══════════════ */}
       <div id="rl" className={`screen${screen === "join" ? " on" : ""}`}>
         <div className="rlwrap">
@@ -920,7 +579,7 @@ export default function ShadowThrone() {
             <button className="b-sm" onClick={() => setScreen("title")}>← กลับ</button>
             <h2 className="cinzel" style={{ fontSize: "18px", color: "var(--gold)" }}>⚔️ เข้าร่วมเกม</h2>
           </div>
- 
+
           <div className="tabs">
             <div className={`tab${tab === "browse" ? " on" : ""}`} onClick={() => { setTab("browse"); browseRooms(); }}>
               🔍 ห้องสาธารณะ
@@ -929,14 +588,14 @@ export default function ShadowThrone() {
               🔒 ใส่รหัสห้อง
             </div>
           </div>
- 
+
           {tab === "browse" && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                 <div style={{ fontSize: "12px", color: "var(--txt-m)" }}>ห้องสาธารณะที่กำลังรอผู้เล่น</div>
                 <button className="b-sm" onClick={browseRooms}>🔄 รีเฟรช</button>
               </div>
- 
+
               {rooms.length === 0 ? (
                 <div className="empty-rooms">
                   <div style={{ fontSize: "48px", marginBottom: "12px" }}>🏰</div>
@@ -951,8 +610,8 @@ export default function ShadowThrone() {
               ) : (
                 rooms.map(r => (
                   <div className="room-card" key={r.code} onClick={() => {
-                    setJoinModal({ code: r.code, hostName: r.hostName || "Host", mode: r.mode, players: r.players.length, maxPlayers: r.maxPlayers });
-                    setJoinModalName("");
+                    const n = prompt("ชื่อของคุณ:", "");
+                    if (n !== null) { setJoinName(n); joinRoom(r.code); }
                   }}>
                     <div className="rc-code">{r.code}</div>
                     <div className="rc-info">
@@ -968,42 +627,33 @@ export default function ShadowThrone() {
               )}
             </>
           )}
- 
+
           {tab === "manual" && (
             <div className="join-box">
-              <div className="join-title">🔒 กรอกรหัสห้อง</div>
- 
-              {/* Room code input */}
-              <div style={{ marginBottom: "4px", textAlign: "left", fontSize: "10px", color: "var(--txt-m)", letterSpacing: ".06em" }}>รหัสห้อง</div>
+              <div className="join-title">🔒 กรอกรหัสห้อง (ส่วนตัว / สาธารณะ)</div>
               <input
                 className="join-input"
                 value={joinCode}
                 onChange={e => setJoinCode(e.target.value.toUpperCase())}
                 placeholder="SOT-XXXX"
                 maxLength={8}
-                style={{ marginBottom: "12px" }}
+                style={{ marginBottom: "10px" }}
               />
- 
-              {/* Name input — styled same as modal */}
-              <div style={{ marginBottom: "4px", textAlign: "left", fontSize: "10px", color: "var(--txt-m)", letterSpacing: ".06em" }}>ชื่อที่ใช้ในเกม</div>
-              <div className="nm-input-wrap" style={{ marginBottom: "16px" }}>
-                <input
-                  value={joinName}
-                  onChange={e => setJoinName(e.target.value.slice(0, 12))}
-                  placeholder="กรอกชื่อของคุณ..."
-                  onKeyDown={e => { if (e.key === "Enter" && joinCode.length >= 4 && joinName.trim()) joinRoom(); }}
-                />
-                <span className="nm-char-count">{joinName.length}/12</span>
-              </div>
- 
-              <button className="btn b-gold" style={{ width: "100%", padding: "12px" }} onClick={() => joinRoom()} disabled={joinCode.length < 4 || !joinName.trim() || wsStatus !== "ok"}>
-                เข้าร่วมห้อง ⚔️
+              <input
+                style={{ textAlign: "center", marginBottom: "12px" }}
+                value={joinName}
+                onChange={e => setJoinName(e.target.value)}
+                placeholder="ชื่อของคุณ"
+                maxLength={12}
+              />
+              <button className="btn b-gold" onClick={() => joinRoom()} disabled={joinCode.length < 4 || wsStatus !== "ok"}>
+                เข้าร่วมห้อง →
               </button>
             </div>
           )}
         </div>
       </div>
- 
+
       {/* ═══════════════════ LOBBY ═══════════════════ */}
       <div id="l" className={`screen${screen === "lobby" ? " on" : ""}`}>
         <div className="lwrap">
@@ -1020,21 +670,10 @@ export default function ShadowThrone() {
                   navigator.clipboard?.writeText(room.code).catch(() => {});
                   showToast("📋 คัดลอกรหัสห้องแล้ว: " + room.code);
                 }}>📋 คัดลอก</button>
-                {/* ✅ FIX 2: ปุ่มแชร์ลิงก์สำหรับเพื่อนต่างเน็ต */}
-                {WS_URL && !WS_URL.includes("localhost") && !WS_URL.includes("127.0.0.1") && (
-                  <button className="b-sm" style={{ background: "rgba(76,201,76,.15)", borderColor: "rgba(76,201,76,.4)", color: "#4cc94c" }}
-                    onClick={() => {
-                      // สร้างลิงก์ที่เพื่อนกดแล้ว connect server ได้ทันที
-                      const serverHost = WS_URL.replace(/^wss?:\/\//, "").replace(/\/ws\/?$/, "");
-                      const shareUrl = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(serverHost)}`;
-                      navigator.clipboard?.writeText(shareUrl).catch(() => {});
-                      showToast("🔗 คัดลอกลิงก์แชร์แล้ว! ส่งให้เพื่อนคลิกเพื่อเข้าร่วม");
-                    }}>🔗 แชร์ลิงก์</button>
-                )}
               </>
             )}
           </div>
- 
+
           {room && (
             <>
               {/* Ready dots */}
@@ -1047,7 +686,7 @@ export default function ShadowThrone() {
                   {readyCount}/{room.maxPlayers} พร้อม
                 </span>
               </div>
- 
+
               {/* Player slots */}
               <div className="sbox">
                 <div className="sh">👥 ผู้เล่น ({room.players.length}/{room.maxPlayers})</div>
@@ -1079,7 +718,7 @@ export default function ShadowThrone() {
                   })}
                 </div>
               </div>
- 
+
               {/* Class selection */}
               <div className="sbox">
                 <div className="sh">⚔ เลือกอาชีพของคุณ</div>
@@ -1104,7 +743,7 @@ export default function ShadowThrone() {
                   ))}
                 </div>
               </div>
- 
+
               {/* Actions */}
               <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap", marginTop: "4px" }}>
                 {!isHost && (
@@ -1133,7 +772,7 @@ export default function ShadowThrone() {
           )}
         </div>
       </div>
- 
+
       {/* ═════════════ ROLE REVEAL ═════════════ */}
       {/* FIX: ทุกคนเปิดโรลพร้อมกันได้ — ไม่ต้องรอตามลำดับ */}
       <div id="rr" className={`screen${screen === "roles" ? " on" : ""}`}>
@@ -1145,9 +784,9 @@ export default function ShadowThrone() {
           <p style={{ fontSize: "12px", color: "var(--txt-m)", marginBottom: "14px" }}>
             แตะไพ่เพื่อดูบทบาทลับของคุณ — ห้ามให้คนอื่นเห็น!
           </p>
- 
+
           <div className="warn-box">⚠ ทุกคนสามารถเปิดดูบทบาทพร้อมกัน เมื่อทุกคนกดยืนยันแล้ว เกมจะเริ่มทันที</div>
- 
+
           {/* Flip card */}
           <div className="flip-outer" onClick={() => !roleConfirmed && setFlipped(true)}>
             <div className={`flip${flipped ? " f" : ""}`}>
@@ -1165,7 +804,7 @@ export default function ShadowThrone() {
               )}
             </div>
           </div>
- 
+
           {/* Confirm button (only after flip) */}
           {flipped && !roleConfirmed && (
             <div style={{ textAlign: "center", marginTop: "14px" }}>
@@ -1177,7 +816,7 @@ export default function ShadowThrone() {
               </button>
             </div>
           )}
- 
+
           {roleConfirmed && (
             <div style={{ textAlign: "center", marginTop: "14px" }}>
               <div style={{ fontSize: "12px", color: "#4cc94c", marginBottom: "10px" }}>
@@ -1185,7 +824,7 @@ export default function ShadowThrone() {
               </div>
             </div>
           )}
- 
+
           {/* Show who has confirmed */}
           {room && room.rolesReady && room.rolesReady.length > 0 && (
             <div style={{ marginTop: "16px", width: "100%", maxWidth: "360px" }}>
@@ -1204,13 +843,13 @@ export default function ShadowThrone() {
               </div>
             </div>
           )}
- 
+
           {!flipped && (
             <div className="blink" style={{ marginTop: "16px" }}>แตะการ์ดเพื่อดูบทบาทของคุณ</div>
           )}
         </div>
       </div>
- 
+
       {/* ═════════════ GAMEBOARD ═════════════ */}
       <div id="gb" className={`screen${screen === "gameboard" ? " on" : ""}`}>
         {/* Waiting overlay ถ้ายังไม่ all_roles_ready */}
@@ -1232,13 +871,13 @@ export default function ShadowThrone() {
             )}
           </div>
         )}
- 
+
         <div className="lwrap" style={{ padding: "20px", maxWidth: "720px", margin: "0 auto" }}>
           <div className="sbox" style={{ textAlign: "center", borderColor: "var(--gold)" }}>
             <h2 className="cinzel" style={{ color: "var(--gold)", marginBottom: "4px" }}>🏰 สมรภูมิ: บัลลังก์เงา</h2>
             <p style={{ fontSize: "12px", color: "var(--txt-m)" }}>เกมกำลังดำเนินอยู่ — ใช้กลยุทธ์ให้ดี!</p>
           </div>
- 
+
           {/* My role card */}
           {roleDef && (
             <div className="sbox">
@@ -1253,7 +892,7 @@ export default function ShadowThrone() {
               </div>
             </div>
           )}
- 
+
           {/* Player list */}
           {room && (
             <div className="sbox">
@@ -1281,7 +920,7 @@ export default function ShadowThrone() {
               </table>
             </div>
           )}
- 
+
           <div style={{ textAlign: "center", marginTop: "20px" }}>
             <button className="b-danger" onClick={leaveRoom}>✕ ออกจากเกม</button>
           </div>
