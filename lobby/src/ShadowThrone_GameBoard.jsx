@@ -5,87 +5,87 @@ import { useState, useEffect, useCallback, useRef } from "react";
 // ══════════════════════════════════════════════
 
 const ROLES = {
-  king:     { id:"king",     ico:"👑", name:"พระราชา",  color:"#c9a84c", hp:16, desc:"รักษาบัลลังก์และปกป้องอาณาจักร", win:"ครองราชย์ครบ 6 เฟส หรือปราบกบฏทั้งหมด" },
-  rebel:    { id:"rebel",    ico:"⚔️", name:"กบฏ",      color:"#c94040", hp:13, desc:"โค่นบัลลังก์ด้วยการรวมกำลัง",    win:"ราชา HP=0 หรือยึดศาลบัลลังก์ 2 เฟส" },
-  traitor:  { id:"traitor",  ico:"🗡️", name:"คนทรยศ",  color:"#8c4cc9", hp:10, desc:"ซ่อนตัวสะสมสมบัติลับ",            win:"สมบัติ 5 ชิ้น หรือรอดคนสุดท้าย" },
-  commoner: { id:"commoner", ico:"🧑", name:"ราษฎร",    color:"#4cc94c", hp:11, desc:"สะสมทรัพย์สินเอาตัวรอด",          win:"ทอง 10 เหรียญ หรือ Lv.5" },
+  king: { id: "king", ico: "👑", name: "พระราชา", color: "#c9a84c", hp: 16, desc: "รักษาบัลลังก์และปกป้องอาณาจักร", win: "ครองราชย์ครบ 6 เฟส หรือปราบกบฏทั้งหมด" },
+  rebel: { id: "rebel", ico: "⚔️", name: "กบฏ", color: "#c94040", hp: 13, desc: "โค่นบัลลังก์ด้วยการรวมกำลัง", win: "ราชา HP=0 หรือยึดศาลบัลลังก์ 2 เฟส" },
+  traitor: { id: "traitor", ico: "🗡️", name: "คนทรยศ", color: "#8c4cc9", hp: 10, desc: "ซ่อนตัวสะสมสมบัติลับ", win: "สมบัติ 5 ชิ้น หรือรอดคนสุดท้าย" },
+  commoner: { id: "commoner", ico: "🧑", name: "ราษฎร", color: "#4cc94c", hp: 11, desc: "สะสมทรัพย์สินเอาตัวรอด", win: "ทอง 10 เหรียญ หรือ Lv.5" },
 };
 
 const CLASSES = {
-  warrior: { id:"warrior", ico:"⚔️", name:"นักรบ",   color:"#e05050", hp:12, mana:4,  move:3, atk:3, def:1 },
-  knight:  { id:"knight",  ico:"🛡️", name:"อัศวิน",  color:"#5080e0", hp:14, mana:5,  move:2, atk:2, def:3 },
-  mage:    { id:"mage",    ico:"🔮", name:"นักเวทย์",color:"#9050e0", hp:7,  mana:14, move:2, atk:5, def:0 },
-  archer:  { id:"archer",  ico:"🏹", name:"นักธนู",  color:"#50c050", hp:9,  mana:6,  move:4, atk:4, def:1 },
-  rogue:   { id:"rogue",   ico:"🗡️", name:"โจร",     color:"#c0a030", hp:9,  mana:7,  move:5, atk:3, def:1 },
-  cleric:  { id:"cleric",  ico:"✨", name:"นักบวช",  color:"#e0c040", hp:10, mana:10, move:2, atk:1, def:2 },
+  warrior: { id: "warrior", ico: "⚔️", name: "นักรบ", color: "#e05050", hp: 12, mana: 4, move: 3, atk: 3, def: 1 },
+  knight: { id: "knight", ico: "🛡️", name: "อัศวิน", color: "#5080e0", hp: 14, mana: 5, move: 2, atk: 2, def: 3 },
+  mage: { id: "mage", ico: "🔮", name: "นักเวทย์", color: "#9050e0", hp: 7, mana: 14, move: 2, atk: 5, def: 0 },
+  archer: { id: "archer", ico: "🏹", name: "นักธนู", color: "#50c050", hp: 9, mana: 6, move: 4, atk: 4, def: 1 },
+  rogue: { id: "rogue", ico: "🗡️", name: "โจร", color: "#c0a030", hp: 9, mana: 7, move: 5, atk: 3, def: 1 },
+  cleric: { id: "cleric", ico: "✨", name: "นักบวช", color: "#e0c040", hp: 10, mana: 10, move: 2, atk: 1, def: 2 },
 };
 
 // Terrain types
 const TERRAIN = {
-  plains:   { id:"plains",   name:"ที่ราบ",       ico:"🌿", color:"#2d5a27", dark:"#1a3a18", moveCost:1 },
-  forest:   { id:"forest",   name:"ป่า",          ico:"🌲", color:"#1a4a1a", dark:"#0d2e0d", moveCost:2 },
-  mountain: { id:"mountain", name:"ภูเขา",        ico:"⛰️", color:"#4a4040", dark:"#2e2828", moveCost:3 },
-  water:    { id:"water",    name:"แม่น้ำ",       ico:"🌊", color:"#1a3a5a", dark:"#0d2438", moveCost:99 },
-  desert:   { id:"desert",   name:"ทะเลทราย",    ico:"🏜️", color:"#6a5a30", dark:"#4a3e20", moveCost:2 },
-  swamp:    { id:"swamp",    name:"หนองน้ำ",      ico:"🌿", color:"#2a4a30", dark:"#182e1e", moveCost:3 },
+  plains: { id: "plains", name: "ที่ราบ", ico: "🌿", color: "#2d5a27", dark: "#1a3a18", moveCost: 1 },
+  forest: { id: "forest", name: "ป่า", ico: "🌲", color: "#1a4a1a", dark: "#0d2e0d", moveCost: 2 },
+  mountain: { id: "mountain", name: "ภูเขา", ico: "⛰️", color: "#4a4040", dark: "#2e2828", moveCost: 3 },
+  water: { id: "water", name: "แม่น้ำ", ico: "🌊", color: "#1a3a5a", dark: "#0d2438", moveCost: 99 },
+  desert: { id: "desert", name: "ทะเลทราย", ico: "🏜️", color: "#6a5a30", dark: "#4a3e20", moveCost: 2 },
+  swamp: { id: "swamp", name: "หนองน้ำ", ico: "🌿", color: "#2a4a30", dark: "#182e1e", moveCost: 3 },
 };
 
 // Special zones
 const SPECIAL_ZONES = {
-  palace:     { name:"พระราชวัง",    ico:"🏰", effect:"king_buff",    desc:"ราชา HP+3 ทุกเฟส" },
-  throne:     { name:"ศาลบัลลังก์", ico:"⚖️", effect:"throne",       desc:"ราชา HP+3 / กบฏ HP-2" },
-  village:    { name:"หมู่บ้าน",     ico:"🏘️", effect:"heal",         desc:"ฟื้น HP+2 เมื่อยืน" },
-  market:     { name:"ตลาดกลาง",    ico:"🏪", effect:"trade",        desc:"ซื้อขายการ์ดได้" },
-  rebel_camp: { name:"ค่ายกบฏ",     ico:"⛺", effect:"rebel_buff",   desc:"กบฏ ATK+2 HP+2" },
-  dark_forest:{ name:"ป่าดำ",        ico:"🌑", effect:"trap",         desc:"สามารถซ่อนตัวได้" },
-  dungeon:    { name:"คุก",          ico:"🗝️", effect:"loot",         desc:"หาสมบัติ แต่เสี่ยงอันตราย" },
-  tower:      { name:"หอเวทย์",      ico:"🗼", effect:"magic",        desc:"จั่วเวทย์ฟรี 1 ใบ" },
-  shrine:     { name:"ศาลเจ้า",      ico:"⛩️", effect:"full_heal",    desc:"ฟื้น HP เต็ม 1 ครั้ง/เกม" },
-  cave:       { name:"ถ้ำมังกร",     ico:"🐉", effect:"treasure",     desc:"ทอง+3 แต่เสี่ยง HP-3" },
+  palace: { name: "พระราชวัง", ico: "🏰", effect: "king_buff", desc: "ราชา HP+3 ทุกเฟส" },
+  throne: { name: "ศาลบัลลังก์", ico: "⚖️", effect: "throne", desc: "ราชา HP+3 / กบฏ HP-2" },
+  village: { name: "หมู่บ้าน", ico: "🏘️", effect: "heal", desc: "ฟื้น HP+2 เมื่อยืน" },
+  market: { name: "ตลาดกลาง", ico: "🏪", effect: "trade", desc: "ซื้อขายการ์ดได้" },
+  rebel_camp: { name: "ค่ายกบฏ", ico: "⛺", effect: "rebel_buff", desc: "กบฏ ATK+2 HP+2" },
+  dark_forest: { name: "ป่าดำ", ico: "🌑", effect: "trap", desc: "สามารถซ่อนตัวได้" },
+  dungeon: { name: "คุก", ico: "🗝️", effect: "loot", desc: "หาสมบัติ แต่เสี่ยงอันตราย" },
+  tower: { name: "หอเวทย์", ico: "🗼", effect: "magic", desc: "จั่วเวทย์ฟรี 1 ใบ" },
+  shrine: { name: "ศาลเจ้า", ico: "⛩️", effect: "full_heal", desc: "ฟื้น HP เต็ม 1 ครั้ง/เกม" },
+  cave: { name: "ถ้ำมังกร", ico: "🐉", effect: "treasure", desc: "ทอง+3 แต่เสี่ยง HP-3" },
 };
 
 // Cards data
 const WEAPON_CARDS = [
-  { id:"sword_king",   name:"ดาบแห่งกษัตริย์",  ico:"⚔️", rarity:"divine",  atk:2,   desc:"ATK+2 (ราชา ATK+4)", effect:"king_only" },
-  { id:"fire_spear",   name:"หอกปลายเพลิง",      ico:"🔱", rarity:"divine",  atk:3,   desc:"ทะลุเกราะ + เผา 1 เทิร์น", effect:"burn" },
-  { id:"ice_bow",      name:"ธนูคริสตัลน้ำแข็ง", ico:"🏹", rarity:"divine",  atk:2,   desc:"แช่แข็งเป้า 1 เทิร์น", effect:"freeze" },
-  { id:"dagger",       name:"มีดลอบสังหาร",       ico:"🗡️", rarity:"common",  atk:1,   desc:"โจมตีหลัง ATK+3", effect:"backstab" },
-  { id:"battle_axe",   name:"ขวานสองคม",          ico:"🪓", rarity:"common",  atk:3,   desc:"ATK+3 เสีย HP1", effect:"self_dmg" },
-  { id:"dragon_armor", name:"เกราะเงินมังกร",     ico:"🛡️", rarity:"divine",  def:2,   desc:"ลด DMG -2 ทุกครั้ง", effect:"def" },
-  { id:"oak_shield",   name:"โล่ไม้โอ๊ค",         ico:"🛡️", rarity:"common",  def:1,   desc:"ป้องกัน ฟื้น HP+1", effect:"def_heal" },
-  { id:"thorn_armor",  name:"เกราะหนามเหล็ก",     ico:"🔰", rarity:"common",  def:0,   desc:"ผู้โจมตีเสีย HP1", effect:"reflect" },
-  { id:"war_hammer",   name:"ค้อนราชันย์",         ico:"🔨", rarity:"secret",  atk:5,   desc:"ATK+5 สั่นสะเทือนรอบข้าง", effect:"aoe" },
-  { id:"blood_sword",  name:"ดาบเลือดสาบาน",      ico:"💀", rarity:"secret",  atk:6,   desc:"เสีย HP2 → ATK+6", effect:"blood" },
+  { id: "sword_king", name: "ดาบแห่งกษัตริย์", ico: "⚔️", rarity: "divine", atk: 2, desc: "ATK+2 (ราชา ATK+4)", effect: "king_only" },
+  { id: "fire_spear", name: "หอกปลายเพลิง", ico: "🔱", rarity: "divine", atk: 3, desc: "ทะลุเกราะ + เผา 1 เทิร์น", effect: "burn" },
+  { id: "ice_bow", name: "ธนูคริสตัลน้ำแข็ง", ico: "🏹", rarity: "divine", atk: 2, desc: "แช่แข็งเป้า 1 เทิร์น", effect: "freeze" },
+  { id: "dagger", name: "มีดลอบสังหาร", ico: "🗡️", rarity: "common", atk: 1, desc: "โจมตีหลัง ATK+3", effect: "backstab" },
+  { id: "battle_axe", name: "ขวานสองคม", ico: "🪓", rarity: "common", atk: 3, desc: "ATK+3 เสีย HP1", effect: "self_dmg" },
+  { id: "dragon_armor", name: "เกราะเงินมังกร", ico: "🛡️", rarity: "divine", def: 2, desc: "ลด DMG -2 ทุกครั้ง", effect: "def" },
+  { id: "oak_shield", name: "โล่ไม้โอ๊ค", ico: "🛡️", rarity: "common", def: 1, desc: "ป้องกัน ฟื้น HP+1", effect: "def_heal" },
+  { id: "thorn_armor", name: "เกราะหนามเหล็ก", ico: "🔰", rarity: "common", def: 0, desc: "ผู้โจมตีเสีย HP1", effect: "reflect" },
+  { id: "war_hammer", name: "ค้อนราชันย์", ico: "🔨", rarity: "secret", atk: 5, desc: "ATK+5 สั่นสะเทือนรอบข้าง", effect: "aoe" },
+  { id: "blood_sword", name: "ดาบเลือดสาบาน", ico: "💀", rarity: "secret", atk: 6, desc: "เสีย HP2 → ATK+6", effect: "blood" },
 ];
 
 const MAGIC_CARDS = [
-  { id:"hellfire",     name:"ไฟนรก",            ico:"🔥", rarity:"rare",   dmg:6, desc:"DMG 6 เป้าเดี่ยว",       cost:3 },
-  { id:"ice_storm",    name:"พายุน้ำแข็ง",      ico:"❄️", rarity:"rare",   dmg:3, desc:"แช่แข็ง 1 เทิร์น",        cost:2 },
-  { id:"lightning",    name:"สายฟ้า",            ico:"⚡", rarity:"divine", dmg:3, desc:"DMG 3 ทุกศัตรู",          cost:5 },
-  { id:"holy_heal",    name:"แสงศักดิ์สิทธิ์",  ico:"✨", rarity:"rare",   heal:5, desc:"ฟื้น HP+5",               cost:3 },
-  { id:"dark_curse",   name:"คำสาปเงา",         ico:"🌑", rarity:"rare",   dmg:0, desc:"ATK ศัตรู -2 เป็น 2 เทิร์น",cost:2 },
-  { id:"time_stop",    name:"หยุดเวลา",          ico:"⏳", rarity:"divine", dmg:0, desc:"ศัตรูพลาดเทิร์นถัดไป",   cost:0, once:true },
-  { id:"warp",         name:"วาร์ปหลบ",          ico:"🌀", rarity:"rare",   dmg:0, desc:"เทเลพอร์ตไปพื้นที่ใดก็ได้",cost:3 },
-  { id:"amrita",       name:"น้ำอมฤต",          ico:"💧", rarity:"divine", heal:99, desc:"ฟื้น HP เต็ม 1 ครั้ง/เกม",cost:0, once:true },
+  { id: "hellfire", name: "ไฟนรก", ico: "🔥", rarity: "rare", dmg: 6, desc: "DMG 6 เป้าเดี่ยว", cost: 3 },
+  { id: "ice_storm", name: "พายุน้ำแข็ง", ico: "❄️", rarity: "rare", dmg: 3, desc: "แช่แข็ง 1 เทิร์น", cost: 2 },
+  { id: "lightning", name: "สายฟ้า", ico: "⚡", rarity: "divine", dmg: 3, desc: "DMG 3 ทุกศัตรู", cost: 5 },
+  { id: "holy_heal", name: "แสงศักดิ์สิทธิ์", ico: "✨", rarity: "rare", heal: 5, desc: "ฟื้น HP+5", cost: 3 },
+  { id: "dark_curse", name: "คำสาปเงา", ico: "🌑", rarity: "rare", dmg: 0, desc: "ATK ศัตรู -2 เป็น 2 เทิร์น", cost: 2 },
+  { id: "time_stop", name: "หยุดเวลา", ico: "⏳", rarity: "divine", dmg: 0, desc: "ศัตรูพลาดเทิร์นถัดไป", cost: 0, once: true },
+  { id: "warp", name: "วาร์ปหลบ", ico: "🌀", rarity: "rare", dmg: 0, desc: "เทเลพอร์ตไปพื้นที่ใดก็ได้", cost: 3 },
+  { id: "amrita", name: "น้ำอมฤต", ico: "💧", rarity: "divine", heal: 99, desc: "ฟื้น HP เต็ม 1 ครั้ง/เกม", cost: 0, once: true },
 ];
 
 const TRAP_CARDS = [
-  { id:"iron_pit",     name:"หลุมหนาม",          ico:"🕳️", dmg:3, desc:"DMG -3 ทันที" },
-  { id:"poison",       name:"พิษจากรากเถาวัลย์", ico:"☠️", dmg:1, desc:"ติดพิษ -1HP/เทิร์น 3 เทิร์น", poison:3 },
-  { id:"net",          name:"ตาข่าย",             ico:"🕸️", dmg:0, desc:"ล็อค 1 เทิร์น", lock:1 },
-  { id:"bomb",         name:"ระเบิดควัน",          ico:"💨", dmg:0, desc:"ตาบอด 2 เทิร์น", blind:2 },
-  { id:"spikes",       name:"กงเล็บเหล็ก",        ico:"⚙️", dmg:2, desc:"ทำลายเกราะ + DMG -2", destroy_armor:true },
+  { id: "iron_pit", name: "หลุมหนาม", ico: "🕳️", dmg: 3, desc: "DMG -3 ทันที" },
+  { id: "poison", name: "พิษจากรากเถาวัลย์", ico: "☠️", dmg: 1, desc: "ติดพิษ -1HP/เทิร์น 3 เทิร์น", poison: 3 },
+  { id: "net", name: "ตาข่าย", ico: "🕸️", dmg: 0, desc: "ล็อค 1 เทิร์น", lock: 1 },
+  { id: "bomb", name: "ระเบิดควัน", ico: "💨", dmg: 0, desc: "ตาบอด 2 เทิร์น", blind: 2 },
+  { id: "spikes", name: "กงเล็บเหล็ก", ico: "⚙️", dmg: 2, desc: "ทำลายเกราะ + DMG -2", destroy_armor: true },
 ];
 
 // Phase events
 const PHASE_EVENTS = [
-  { id:"harvest",   name:"วันเก็บเกี่ยว",    ico:"🌾", desc:"ทุกคนได้ทอง +2",              fx:"gold_all" },
-  { id:"holy_day",  name:"วันศักดิ์สิทธิ์",  ico:"🌟", desc:"ทุกคนฟื้น HP +3",             fx:"heal_all" },
-  { id:"ghost",     name:"ขบวนทัพผี",        ico:"👻", desc:"ทุกคนเสีย HP -2",             fx:"dmg_all" },
-  { id:"storm",     name:"พายุฝน",           ico:"⛈️", desc:"ทุกคนทิ้งอาวุธ 1 ใบ",        fx:"discard_weapon" },
-  { id:"war_drum",  name:"กลองศึก",          ico:"🥁", desc:"ทุกคน +1 ATK รอบนี้",         fx:"atk_all" },
-  { id:"dragon",    name:"มังกรบุก",          ico:"🐉", desc:"ทุกคนเสียอาวุธ ATK<3",       fx:"discard_weak" },
-  { id:"assassin",  name:"นักฆ่าลึกลับ",     ico:"🗡️", desc:"ผู้เล่น HP มากสุดเสีย HP-3", fx:"dmg_highest" },
+  { id: "harvest", name: "วันเก็บเกี่ยว", ico: "🌾", desc: "ทุกคนได้ทอง +2", fx: "gold_all" },
+  { id: "holy_day", name: "วันศักดิ์สิทธิ์", ico: "🌟", desc: "ทุกคนฟื้น HP +3", fx: "heal_all" },
+  { id: "ghost", name: "ขบวนทัพผี", ico: "👻", desc: "ทุกคนเสีย HP -2", fx: "dmg_all" },
+  { id: "storm", name: "พายุฝน", ico: "⛈️", desc: "ทุกคนทิ้งอาวุธ 1 ใบ", fx: "discard_weapon" },
+  { id: "war_drum", name: "กลองศึก", ico: "🥁", desc: "ทุกคน +1 ATK รอบนี้", fx: "atk_all" },
+  { id: "dragon", name: "มังกรบุก", ico: "🐉", desc: "ทุกคนเสียอาวุธ ATK<3", fx: "discard_weak" },
+  { id: "assassin", name: "นักฆ่าลึกลับ", ico: "🗡️", desc: "ผู้เล่น HP มากสุดเสีย HP-3", fx: "dmg_highest" },
 ];
 
 // ══════════════════════════════════════════════
@@ -93,21 +93,21 @@ const PHASE_EVENTS = [
 // ══════════════════════════════════════════════
 
 function generateHexMap(cols = 9, rows = 7) {
-  const terrainPool = ["plains","plains","plains","plains","forest","forest","mountain","water","desert","swamp"];
+  const terrainPool = ["plains", "plains", "plains", "plains", "forest", "forest", "mountain", "water", "desert", "swamp"];
   const cells = [];
 
   // Special zones to place
   const specialPlaces = [
-    { zone:"palace",     fixed:{ col:4, row:0 } },
-    { zone:"throne",     fixed:{ col:4, row:1 } },
-    { zone:"village",    fixed:null },
-    { zone:"market",     fixed:{ col:4, row:3 } },
-    { zone:"rebel_camp", fixed:null },
-    { zone:"dark_forest",fixed:null },
-    { zone:"tower",      fixed:null },
-    { zone:"shrine",     fixed:null },
-    { zone:"cave",       fixed:null },
-    { zone:"dungeon",    fixed:null },
+    { zone: "palace", fixed: { col: 4, row: 0 } },
+    { zone: "throne", fixed: { col: 4, row: 1 } },
+    { zone: "village", fixed: null },
+    { zone: "market", fixed: { col: 4, row: 3 } },
+    { zone: "rebel_camp", fixed: null },
+    { zone: "dark_forest", fixed: null },
+    { zone: "tower", fixed: null },
+    { zone: "shrine", fixed: null },
+    { zone: "cave", fixed: null },
+    { zone: "dungeon", fixed: null },
   ];
 
   // Fixed positions
@@ -150,13 +150,13 @@ function generateHexMap(cols = 9, rows = 7) {
       else terrain = terrainPool[Math.floor(Math.random() * terrainPool.length)];
 
       // Water borders
-      if ((col === 0 || col === cols-1) && Math.random() < 0.3) terrain = "water";
-      if ((row === 0 || row === rows-1) && Math.random() < 0.2) terrain = "water";
+      if ((col === 0 || col === cols - 1) && Math.random() < 0.3) terrain = "water";
+      if ((row === 0 || row === rows - 1) && Math.random() < 0.2) terrain = "water";
 
       // Palace always plains
       if (specialZone === "palace") terrain = "plains";
 
-      cells.push({ col, row, key, terrain, specialZone, players:[], trap:null, item:null });
+      cells.push({ col, row, key, terrain, specialZone, players: [], trap: null, item: null });
     }
   }
   return cells;
@@ -185,10 +185,10 @@ function hexDistance(a, b) {
 function getNeighbors(col, row, cells, cols = 9, rows = 7) {
   const isOdd = col % 2 === 1;
   const dirs = isOdd
-    ? [[-1,0],[-1,1],[0,-1],[0,1],[1,0],[1,1]]
-    : [[-1,-1],[-1,0],[0,-1],[0,1],[1,-1],[1,0]];
+    ? [[-1, 0], [-1, 1], [0, -1], [0, 1], [1, 0], [1, 1]]
+    : [[-1, -1], [-1, 0], [0, -1], [0, 1], [1, -1], [1, 0]];
   return dirs
-    .map(([dc,dr]) => cells.find(c => c.col === col+dc && c.row === row+dr))
+    .map(([dc, dr]) => cells.find(c => c.col === col + dc && c.row === row + dr))
     .filter(Boolean)
     .filter(c => c.terrain !== "water");
 }
@@ -264,7 +264,7 @@ function dealStartingCards() {
 
 function spawnPlayers(players, cells) {
   // Spread players far apart
-  const spawnZones = ["village","rebel_camp","palace","dark_forest","dungeon","tower"];
+  const spawnZones = ["village", "rebel_camp", "palace", "dark_forest", "dungeon", "tower"];
   const spawnCells = spawnZones
     .map(z => cells.find(c => c.specialZone === z))
     .filter(Boolean);
@@ -299,13 +299,13 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 ::-webkit-scrollbar-thumb{background:var(--gold-d);border-radius:2px}
 
 /* ── LAYOUT ── */
-.game-root{display:grid;grid-template-columns:220px 1fr 220px;grid-template-rows:52px 1fr 200px;height:100vh;gap:0}
+.game-root{display:grid;grid-template-columns:220px 220px 1fr;grid-template-rows:52px 1fr 200px;height:100vh;gap:0}
 .top-bar{grid-column:1/-1;background:var(--s2);border-bottom:1px solid rgba(201,168,76,.2);display:flex;align-items:center;gap:12px;padding:0 16px;z-index:10}
-.left-panel{grid-row:2/4;background:var(--s2);border-right:1px solid rgba(201,168,76,.12);overflow-y:auto;padding:10px}
-.map-area{background:var(--stone);overflow:hidden;position:relative;cursor:grab}
+.left-panel{grid-column:1;grid-row:2/4;background:var(--s2);border-right:1px solid rgba(201,168,76,.12);overflow-y:auto;padding:10px}
+.map-area{grid-column:3;grid-row:2/3;background:var(--stone);overflow:hidden;position:relative;cursor:grab}
 .map-area:active{cursor:grabbing}
-.bottom-bar{background:var(--s2);border-top:1px solid rgba(201,168,76,.12);overflow:hidden;display:flex;flex-direction:column}
-.right-panel{grid-row:2/4;background:var(--s2);border-left:1px solid rgba(201,168,76,.12);overflow-y:auto;padding:10px}
+.bottom-bar{grid-column:3;grid-row:3/4;background:var(--s2);border-top:1px solid rgba(201,168,76,.12);overflow:hidden;display:flex;flex-direction:column}
+.right-panel{grid-column:2;grid-row:2/4;background:var(--s2);border-right:1px solid rgba(201,168,76,.12);overflow-y:auto;padding:10px}
 
 /* ── TOP BAR ── */
 .tb-title{font-family:'Cinzel Decorative',serif;font-size:16px;color:var(--gold);letter-spacing:.06em;flex:0 0 auto}
@@ -479,20 +479,20 @@ function hexPoints(cx, cy, size) {
 }
 
 const TERRAIN_COLORS = {
-  plains:   "#2d5a27",
-  forest:   "#1a4a1a",
+  plains: "#2d5a27",
+  forest: "#1a4a1a",
   mountain: "#4a4040",
-  water:    "#1a3a5a",
-  desert:   "#6a5a30",
-  swamp:    "#2a4a30",
+  water: "#1a3a5a",
+  desert: "#6a5a30",
+  swamp: "#2a4a30",
 };
 const TERRAIN_STROKE = {
-  plains:   "#3a7a35",
-  forest:   "#254a25",
+  plains: "#3a7a35",
+  forest: "#254a25",
   mountain: "#5a5050",
-  water:    "#254a6a",
-  desert:   "#7a6a40",
-  swamp:    "#3a5a40",
+  water: "#254a6a",
+  desert: "#7a6a40",
+  swamp: "#3a5a40",
 };
 
 // ══════════════════════════════════════════════
@@ -502,15 +502,15 @@ const TERRAIN_STROKE = {
 export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
   // Demo mode if no roomData
   const defaultPlayers = [
-    { name:"ฝาง (คุณ)", classId:"warrior", role:"king" },
-    { name:"ห่อง",      classId:"mage",    role:"rebel" },
-    { name:"ชัย",       classId:"archer",  role:"rebel" },
-    { name:"นน",        classId:"cleric",  role:"commoner" },
+    { name: "ฝาง (คุณ)", classId: "warrior", role: "king" },
+    { name: "ห่อง", classId: "mage", role: "rebel" },
+    { name: "ชัย", classId: "archer", role: "rebel" },
+    { name: "นน", classId: "cleric", role: "commoner" },
   ];
   const initPlayers = roomData?.players?.map((p, i) => ({
     name: p.name,
     classId: p.class || "warrior",
-    role: roomData.roles?.[i] || ["king","rebel","rebel","commoner"][i % 4],
+    role: roomData.roles?.[i] || ["king", "rebel", "rebel", "commoner"][i % 4],
   })) || defaultPlayers;
 
   // MAP
@@ -534,7 +534,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
   const [selectedCell, setSelectedCell] = useState(null);
   const [reachableCells, setReachableCells] = useState([]);
   const [attackableCells, setAttackableCells] = useState([]);
-  const [log, setLog] = useState([{ msg:"🏰 เกมเริ่มต้น! โชคดีทุกคน", type:"event", time:Date.now() }]);
+  const [log, setLog] = useState([{ msg: "🏰 เกมเริ่มต้น! โชคดีทุกคน", type: "event", time: Date.now() }]);
   const [gameOver, setGameOver] = useState(null);
   const [showDice, setShowDice] = useState(null);
   const [activeEvent, setActiveEvent] = useState(null);
@@ -556,7 +556,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
     const rect = mapAreaRef.current.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return; // not laid out yet
     setMapOffset({
-      x: Math.round((rect.width  - mapW) / 2),
+      x: Math.round((rect.width - mapW) / 2),
       y: Math.round((rect.height - mapH) / 2),
     });
   }, [mapW, mapH]);
@@ -878,9 +878,9 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
 
       <div className="mobile-msg">
         <div>
-          <div style={{fontSize:"48px",marginBottom:"12px"}}>🏰</div>
-          <div style={{fontFamily:"'Cinzel',serif",color:"var(--gold)",fontSize:"18px",marginBottom:"8px"}}>บัลลังก์เงา</div>
-          <div style={{color:"var(--txt-m)",fontSize:"13px"}}>กรุณาใช้หน้าจอขนาดใหญ่<br/>เพื่อประสบการณ์ที่ดีที่สุด</div>
+          <div style={{ fontSize: "48px", marginBottom: "12px" }}>🏰</div>
+          <div style={{ fontFamily: "'Cinzel',serif", color: "var(--gold)", fontSize: "18px", marginBottom: "8px" }}>บัลลังก์เงา</div>
+          <div style={{ color: "var(--txt-m)", fontSize: "13px" }}>กรุณาใช้หน้าจอขนาดใหญ่<br />เพื่อประสบการณ์ที่ดีที่สุด</div>
         </div>
       </div>
 
@@ -888,25 +888,25 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
         {/* ═══ TOP BAR ═══ */}
         <div className="top-bar">
           <span className="tb-title">♛ บัลลังก์เงา</span>
-          <div className="tb-divider"/>
+          <div className="tb-divider" />
 
           {/* Phase track */}
           <div className="phase-track">
-            {[1,2,3,4,5,6].map(n => (
+            {[1, 2, 3, 4, 5, 6].map(n => (
               <>
                 <div key={n} className={`phase-dot ${phase > n ? "done" : phase === n ? "current" : ""}`}>
                   {n}
                 </div>
-                {n < 6 && <div key={`l${n}`} className={`phase-line ${phase > n ? "done" : ""}`}/>}
+                {n < 6 && <div key={`l${n}`} className={`phase-line ${phase > n ? "done" : ""}`} />}
               </>
             ))}
           </div>
-          <div className="tb-divider"/>
+          <div className="tb-divider" />
           <span className="tb-turn">เทิร์น {phaseStep + 1}</span>
           <div className="tb-current">
             {currentPlayer?.ico} {currentPlayer?.name} {isMyTurn ? "(คุณ)" : ""}
           </div>
-          <div className="tb-spacer"/>
+          <div className="tb-spacer" />
           <button className="tb-btn" onClick={centerMap} title="กลับกลาง">⊕ กลาง</button>
           <button className="tb-btn" onClick={() => setShowRules(r => !r)}>📖 กฎ</button>
           {isMyTurn && (
@@ -933,7 +933,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
                   onMouseEnter={e => setTooltip({ x: e.clientX + 10, y: e.clientY + 10, title: p.name, desc: `${role?.name} — ${role?.win}` })}
                   onMouseLeave={() => setTooltip(null)}
                 >
-                  {isCurrentTurn && <div className="turn-indicator"/>}
+                  {isCurrentTurn && <div className="turn-indicator" />}
                   <div className="p-head">
                     <div className="p-ico" style={{ background: cls?.color + "33", border: `1px solid ${cls?.color}60` }}>
                       {p.alive ? cls?.ico : "💀"}
@@ -946,12 +946,12 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
                   <div className="p-bars">
                     <div className="bar-row">
                       <span>❤</span>
-                      <div className="bar-track"><div className="bar-fill bar-hp" style={{ width: `${(p.hp / p.maxHp) * 100}%` }}/></div>
+                      <div className="bar-track"><div className="bar-fill bar-hp" style={{ width: `${(p.hp / p.maxHp) * 100}%` }} /></div>
                       <span>{p.hp}/{p.maxHp}</span>
                     </div>
                     <div className="bar-row">
                       <span>💧</span>
-                      <div className="bar-track"><div className="bar-fill bar-mp" style={{ width: `${(p.mana / p.maxMana) * 100}%` }}/></div>
+                      <div className="bar-track"><div className="bar-fill bar-mp" style={{ width: `${(p.mana / p.maxMana) * 100}%` }} /></div>
                       <span>{p.mana}/{p.maxMana}</span>
                     </div>
                   </div>
@@ -986,6 +986,20 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* ═══ RIGHT PANEL — Log ═══ */}
+        <div className="right-panel">
+          <div className="sec">
+            <div className="sec-hdr">📜 บันทึกเหตุการณ์</div>
+          </div>
+          <div className="log-area">
+            {log.map((entry, i) => (
+              <div key={i} className={`log-entry ${entry.type}`}>
+                {entry.msg}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1041,13 +1055,13 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
                   />
                   {/* Overlay tint for reachable/attackable */}
                   {isReachable && (
-                    <polygon points={hexPoints(x, y, HEX_SIZE - 2)} fill="rgba(76,201,76,.15)" stroke="none"/>
+                    <polygon points={hexPoints(x, y, HEX_SIZE - 2)} fill="rgba(76,201,76,.15)" stroke="none" />
                   )}
                   {isAttackable && !hasPlayer && (
-                    <polygon points={hexPoints(x, y, HEX_SIZE - 2)} fill="rgba(201,76,76,.1)" stroke="none"/>
+                    <polygon points={hexPoints(x, y, HEX_SIZE - 2)} fill="rgba(201,76,76,.1)" stroke="none" />
                   )}
                   {isAttackable && hasPlayer && (
-                    <polygon points={hexPoints(x, y, HEX_SIZE - 2)} fill="rgba(201,76,76,.25)" stroke="none"/>
+                    <polygon points={hexPoints(x, y, HEX_SIZE - 2)} fill="rgba(201,76,76,.25)" stroke="none" />
                   )}
 
                   {/* Terrain icon */}
@@ -1085,11 +1099,11 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
                   className={`player-token ${isCurrentTurn ? "current-player" : ""}`}
                   transform={`translate(${x + offX - 14}, ${y - 14})`}
                 >
-                  <circle cx="14" cy="14" r="14" fill={cls?.color + "cc"} stroke={isCurrentTurn ? "gold" : "rgba(0,0,0,.5)"} strokeWidth={isCurrentTurn ? "2" : "1"}/>
+                  <circle cx="14" cy="14" r="14" fill={cls?.color + "cc"} stroke={isCurrentTurn ? "gold" : "rgba(0,0,0,.5)"} strokeWidth={isCurrentTurn ? "2" : "1"} />
                   <text x="14" y="14" textAnchor="middle" dominantBaseline="middle" fontSize="16">{cls?.ico}</text>
                   {/* HP micro bar */}
-                  <rect x="2" y="26" width="24" height="3" rx="1.5" fill="rgba(0,0,0,.5)"/>
-                  <rect x="2" y="26" width={24 * (p.hp / p.maxHp)} height="3" rx="1.5" fill="#c94040"/>
+                  <rect x="2" y="26" width="24" height="3" rx="1.5" fill="rgba(0,0,0,.5)" />
+                  <rect x="2" y="26" width={24 * (p.hp / p.maxHp)} height="3" rx="1.5" fill="#c94040" />
                   {/* Name label */}
                   <text x="14" y="36" textAnchor="middle" fontSize="7" fill="rgba(255,255,255,.8)">{p.name}</text>
                 </g>
@@ -1100,13 +1114,13 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
           {/* Turn announce */}
           {turnPhaseAnnounce && (
             <div style={{
-              position:"absolute", top:"50%", left:"50%",
-              transform:"translate(-50%,-50%)",
-              background:"rgba(13,11,8,.9)", border:"1px solid var(--gold)",
-              borderRadius:"12px", padding:"12px 28px",
-              fontFamily:"'Cinzel',serif", fontSize:"18px", color:"var(--gold)",
-              pointerEvents:"none", zIndex:10,
-              animation:"slide-down .3s ease-out"
+              position: "absolute", top: "50%", left: "50%",
+              transform: "translate(-50%,-50%)",
+              background: "rgba(13,11,8,.9)", border: "1px solid var(--gold)",
+              borderRadius: "12px", padding: "12px 28px",
+              fontFamily: "'Cinzel',serif", fontSize: "18px", color: "var(--gold)",
+              pointerEvents: "none", zIndex: 10,
+              animation: "slide-down .3s ease-out"
             }}>
               {turnPhaseAnnounce}
             </div>
@@ -1148,22 +1162,22 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
               <span>ใช้การ์ด</span>
               <span className="act-label">{actionsDone.usedItem ? "✓ ใช้แล้ว" : selectedCard ? `"${selectedCard.name}"` : "เลือกก่อน"}</span>
             </button>
-            <div style={{flex:1}}/>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"0 12px",borderLeft:"1px solid rgba(201,168,76,.1)"}}>
-              <span style={{fontSize:"9px",color:"var(--txt-m)"}}>เฟส</span>
-              <span style={{fontFamily:"'Cinzel',serif",color:"var(--gold)",fontSize:"16px"}}>{phase}/6</span>
+            <div style={{ flex: 1 }} />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, padding: "0 12px", borderLeft: "1px solid rgba(201,168,76,.1)" }}>
+              <span style={{ fontSize: "9px", color: "var(--txt-m)" }}>เฟส</span>
+              <span style={{ fontFamily: "'Cinzel',serif", color: "var(--gold)", fontSize: "16px" }}>{phase}/6</span>
             </div>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"0 12px",borderLeft:"1px solid rgba(201,168,76,.1)"}}>
-              <span style={{fontSize:"9px",color:"var(--txt-m)"}}>ทอง</span>
-              <span style={{color:"var(--gold-l)",fontSize:"16px"}}>💰 {me?.gold || 0}</span>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, padding: "0 12px", borderLeft: "1px solid rgba(201,168,76,.1)" }}>
+              <span style={{ fontSize: "9px", color: "var(--txt-m)" }}>ทอง</span>
+              <span style={{ color: "var(--gold-l)", fontSize: "16px" }}>💰 {me?.gold || 0}</span>
             </div>
             {isMyTurn && (
-              <button className="tb-btn primary" style={{margin:"4px 8px",alignSelf:"center"}} onClick={endTurn}>
+              <button className="tb-btn primary" style={{ margin: "4px 8px", alignSelf: "center" }} onClick={endTurn}>
                 ⏭ จบเทิร์น
               </button>
             )}
             {!isMyTurn && (
-              <div style={{display:"flex",alignItems:"center",padding:"0 12px",fontSize:"11px",color:"var(--txt-m)"}}>
+              <div style={{ display: "flex", alignItems: "center", padding: "0 12px", fontSize: "11px", color: "var(--txt-m)" }}>
                 รอ {currentPlayer?.name}...
               </div>
             )}
@@ -1192,37 +1206,25 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
                   <span className="card-ico">{card.ico}</span>
                   <div className="card-nm">{card.name}</div>
                   <div className="card-desc">{card.desc}</div>
-                  <div style={{fontSize:"8px",marginTop:"3px",color:"var(--txt-d)"}}>
+                  <div style={{ fontSize: "8px", marginTop: "3px", color: "var(--txt-d)" }}>
                     {isWeapon ? "🗡️ อาวุธ" : isMagic ? `🔮 เวทย์` : "🪤 กับดัก"}
                   </div>
                 </div>
               );
             })}
             {(!me?.hand || me.hand.length === 0) && (
-              <div style={{color:"var(--txt-d)",fontSize:"11px",padding:"0 12px"}}>ไม่มีการ์ดในมือ</div>
+              <div style={{ color: "var(--txt-d)", fontSize: "11px", padding: "0 12px" }}>ไม่มีการ์ดในมือ</div>
             )}
           </div>
         </div>
 
-        {/* ═══ RIGHT PANEL — Log ═══ */}
-        <div className="right-panel">
-          <div className="sec">
-            <div className="sec-hdr">📜 บันทึกเหตุการณ์</div>
-          </div>
-          <div className="log-area">
-            {log.map((entry, i) => (
-              <div key={i} className={`log-entry ${entry.type}`}>
-                {entry.msg}
-              </div>
-            ))}
-          </div>
-        </div>
+
       </div>
 
       {/* ═══ DICE ANIMATION ═══ */}
       {showDice !== null && (
         <div className="dice-anim">
-          {["⚀","⚁","⚂","⚃","⚄","⚅"][showDice - 1] || "🎲"}
+          {["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][showDice - 1] || "🎲"}
         </div>
       )}
 
@@ -1246,28 +1248,28 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       {/* ═══ RULES PANEL ═══ */}
       {showRules && (
         <div style={{
-          position:"fixed", inset:0, background:"rgba(0,0,0,.75)", zIndex:200,
-          display:"flex", alignItems:"center", justifyContent:"center"
+          position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", zIndex: 200,
+          display: "flex", alignItems: "center", justifyContent: "center"
         }} onClick={() => setShowRules(false)}>
           <div style={{
-            background:"var(--s2)", border:"1px solid rgba(201,168,76,.3)", borderRadius:"16px",
-            padding:"24px", maxWidth:"500px", width:"90%", maxHeight:"80vh", overflowY:"auto"
+            background: "var(--s2)", border: "1px solid rgba(201,168,76,.3)", borderRadius: "16px",
+            padding: "24px", maxWidth: "500px", width: "90%", maxHeight: "80vh", overflowY: "auto"
           }} onClick={e => e.stopPropagation()}>
-            <h3 style={{fontFamily:"'Cinzel',serif",color:"var(--gold)",marginBottom:"12px",fontSize:"16px"}}>📖 กฎการเล่น</h3>
+            <h3 style={{ fontFamily: "'Cinzel',serif", color: "var(--gold)", marginBottom: "12px", fontSize: "16px" }}>📖 กฎการเล่น</h3>
             {[
-              ["🎯 เป้าหมาย","ผู้เล่นแต่ละฝ่ายมีเป้าหมายที่แตกต่างกัน พระราชาต้องรักษาบัลลังก์ กบฏต้องโค่นบัลลังก์ คนทรยศสะสมสมบัติ ราษฎรสะสมทอง"],
-              ["🚶 แอ็กชั่นเดิน","เดินได้ไม่เกินตามค่า SPD ของอาชีพ เส้นทางในป่าและหนองน้ำช้ากว่า"],
-              ["⚔️ แอ็กชั่นโจมตี","โจมตีศัตรูที่อยู่ในระยะ (ระยะขึ้นกับอาชีพ) ทอยเต๋า 3+ = โจมตีถูก, 6 = คริต!"],
-              ["🃏 แอ็กชั่นการ์ด","ใช้การ์ดในมือ: เลือกการ์ด → คลิกใช้ → เลือกเป้าหมาย"],
-              ["📜 เฟส","เมื่อทุกคนเล่นครบ 1 รอบ = 1 เฟส เกิดเหตุการณ์สุ่ม จั่วการ์ดเพิ่ม"],
-              ["🏰 พื้นที่พิเศษ","แต่ละพื้นที่มีผลพิเศษ เช่น บัลลังก์ให้ราชา HP+3 ค่ายกบฏให้กบฏ ATK+2"],
+              ["🎯 เป้าหมาย", "ผู้เล่นแต่ละฝ่ายมีเป้าหมายที่แตกต่างกัน พระราชาต้องรักษาบัลลังก์ กบฏต้องโค่นบัลลังก์ คนทรยศสะสมสมบัติ ราษฎรสะสมทอง"],
+              ["🚶 แอ็กชั่นเดิน", "เดินได้ไม่เกินตามค่า SPD ของอาชีพ เส้นทางในป่าและหนองน้ำช้ากว่า"],
+              ["⚔️ แอ็กชั่นโจมตี", "โจมตีศัตรูที่อยู่ในระยะ (ระยะขึ้นกับอาชีพ) ทอยเต๋า 3+ = โจมตีถูก, 6 = คริต!"],
+              ["🃏 แอ็กชั่นการ์ด", "ใช้การ์ดในมือ: เลือกการ์ด → คลิกใช้ → เลือกเป้าหมาย"],
+              ["📜 เฟส", "เมื่อทุกคนเล่นครบ 1 รอบ = 1 เฟส เกิดเหตุการณ์สุ่ม จั่วการ์ดเพิ่ม"],
+              ["🏰 พื้นที่พิเศษ", "แต่ละพื้นที่มีผลพิเศษ เช่น บัลลังก์ให้ราชา HP+3 ค่ายกบฏให้กบฏ ATK+2"],
             ].map(([title, desc]) => (
-              <div key={title} style={{marginBottom:"10px"}}>
-                <div style={{fontFamily:"'Cinzel',serif",color:"var(--gold)",fontSize:"12px",marginBottom:"4px"}}>{title}</div>
-                <div style={{fontSize:"11px",color:"var(--txt-m)",lineHeight:"1.6"}}>{desc}</div>
+              <div key={title} style={{ marginBottom: "10px" }}>
+                <div style={{ fontFamily: "'Cinzel',serif", color: "var(--gold)", fontSize: "12px", marginBottom: "4px" }}>{title}</div>
+                <div style={{ fontSize: "11px", color: "var(--txt-m)", lineHeight: "1.6" }}>{desc}</div>
               </div>
             ))}
-            <button style={{marginTop:"8px",width:"100%",padding:"10px"}} className="tb-btn primary" onClick={() => setShowRules(false)}>
+            <button style={{ marginTop: "8px", width: "100%", padding: "10px" }} className="tb-btn primary" onClick={() => setShowRules(false)}>
               ปิด
             </button>
           </div>
@@ -1284,7 +1286,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
             <div className="win-title">เกมจบแล้ว!</div>
             <div className="win-sub">ผู้ชนะ: {gameOver.players?.map(p => p.name).join(", ")}</div>
             <div className="win-reason">{gameOver.reason}</div>
-            <button className="tb-btn primary" style={{width:"100%",padding:"12px"}}
+            <button className="tb-btn primary" style={{ width: "100%", padding: "12px" }}
               onClick={() => {
                 if (onLeave) onLeave();
                 else window.location.reload();
