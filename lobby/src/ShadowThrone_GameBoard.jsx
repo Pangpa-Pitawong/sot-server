@@ -1,14 +1,16 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+
 // ══════════════════════════════════════════════
 // CONSTANTS & DATA
 // ══════════════════════════════════════════════
- 
+
 const ROLES = {
   king:     { id:"king",     ico:"👑", name:"พระราชา",  color:"#c9a84c", hp:16, desc:"รักษาบัลลังก์และปกป้องอาณาจักร", win:"ครองราชย์ครบ 6 เฟส หรือปราบกบฏทั้งหมด" },
   rebel:    { id:"rebel",    ico:"⚔️", name:"กบฏ",      color:"#c94040", hp:13, desc:"โค่นบัลลังก์ด้วยการรวมกำลัง",    win:"ราชา HP=0 หรือยึดศาลบัลลังก์ 2 เฟส" },
   traitor:  { id:"traitor",  ico:"🗡️", name:"คนทรยศ",  color:"#8c4cc9", hp:10, desc:"ซ่อนตัวสะสมสมบัติลับ",            win:"สมบัติ 5 ชิ้น หรือรอดคนสุดท้าย" },
   commoner: { id:"commoner", ico:"🧑", name:"ราษฎร",    color:"#4cc94c", hp:11, desc:"สะสมทรัพย์สินเอาตัวรอด",          win:"ทอง 10 เหรียญ หรือ Lv.5" },
 };
- 
+
 const CLASSES = {
   warrior: { id:"warrior", ico:"⚔️", name:"นักรบ",   color:"#e05050", hp:12, mana:4,  move:3, atk:3, def:1 },
   knight:  { id:"knight",  ico:"🛡️", name:"อัศวิน",  color:"#5080e0", hp:14, mana:5,  move:2, atk:2, def:3 },
@@ -17,7 +19,7 @@ const CLASSES = {
   rogue:   { id:"rogue",   ico:"🗡️", name:"โจร",     color:"#c0a030", hp:9,  mana:7,  move:5, atk:3, def:1 },
   cleric:  { id:"cleric",  ico:"✨", name:"นักบวช",  color:"#e0c040", hp:10, mana:10, move:2, atk:1, def:2 },
 };
- 
+
 // Terrain types
 const TERRAIN = {
   plains:   { id:"plains",   name:"ที่ราบ",       ico:"🌿", color:"#2d5a27", dark:"#1a3a18", moveCost:1 },
@@ -27,7 +29,7 @@ const TERRAIN = {
   desert:   { id:"desert",   name:"ทะเลทราย",    ico:"🏜️", color:"#6a5a30", dark:"#4a3e20", moveCost:2 },
   swamp:    { id:"swamp",    name:"หนองน้ำ",      ico:"🌿", color:"#2a4a30", dark:"#182e1e", moveCost:3 },
 };
- 
+
 // Special zones
 const SPECIAL_ZONES = {
   palace:     { name:"พระราชวัง",    ico:"🏰", effect:"king_buff",    desc:"ราชา HP+3 ทุกเฟส" },
@@ -41,7 +43,7 @@ const SPECIAL_ZONES = {
   shrine:     { name:"ศาลเจ้า",      ico:"⛩️", effect:"full_heal",    desc:"ฟื้น HP เต็ม 1 ครั้ง/เกม" },
   cave:       { name:"ถ้ำมังกร",     ico:"🐉", effect:"treasure",     desc:"ทอง+3 แต่เสี่ยง HP-3" },
 };
- 
+
 // Cards data
 const WEAPON_CARDS = [
   { id:"sword_king",   name:"ดาบแห่งกษัตริย์",  ico:"⚔️", rarity:"divine",  atk:2,   desc:"ATK+2 (ราชา ATK+4)", effect:"king_only" },
@@ -55,7 +57,7 @@ const WEAPON_CARDS = [
   { id:"war_hammer",   name:"ค้อนราชันย์",         ico:"🔨", rarity:"secret",  atk:5,   desc:"ATK+5 สั่นสะเทือนรอบข้าง", effect:"aoe" },
   { id:"blood_sword",  name:"ดาบเลือดสาบาน",      ico:"💀", rarity:"secret",  atk:6,   desc:"เสีย HP2 → ATK+6", effect:"blood" },
 ];
- 
+
 const MAGIC_CARDS = [
   { id:"hellfire",     name:"ไฟนรก",            ico:"🔥", rarity:"rare",   dmg:6, desc:"DMG 6 เป้าเดี่ยว",       cost:3 },
   { id:"ice_storm",    name:"พายุน้ำแข็ง",      ico:"❄️", rarity:"rare",   dmg:3, desc:"แช่แข็ง 1 เทิร์น",        cost:2 },
@@ -66,7 +68,7 @@ const MAGIC_CARDS = [
   { id:"warp",         name:"วาร์ปหลบ",          ico:"🌀", rarity:"rare",   dmg:0, desc:"เทเลพอร์ตไปพื้นที่ใดก็ได้",cost:3 },
   { id:"amrita",       name:"น้ำอมฤต",          ico:"💧", rarity:"divine", heal:99, desc:"ฟื้น HP เต็ม 1 ครั้ง/เกม",cost:0, once:true },
 ];
- 
+
 const TRAP_CARDS = [
   { id:"iron_pit",     name:"หลุมหนาม",          ico:"🕳️", dmg:3, desc:"DMG -3 ทันที" },
   { id:"poison",       name:"พิษจากรากเถาวัลย์", ico:"☠️", dmg:1, desc:"ติดพิษ -1HP/เทิร์น 3 เทิร์น", poison:3 },
@@ -74,7 +76,7 @@ const TRAP_CARDS = [
   { id:"bomb",         name:"ระเบิดควัน",          ico:"💨", dmg:0, desc:"ตาบอด 2 เทิร์น", blind:2 },
   { id:"spikes",       name:"กงเล็บเหล็ก",        ico:"⚙️", dmg:2, desc:"ทำลายเกราะ + DMG -2", destroy_armor:true },
 ];
- 
+
 // Phase events
 const PHASE_EVENTS = [
   { id:"harvest",   name:"วันเก็บเกี่ยว",    ico:"🌾", desc:"ทุกคนได้ทอง +2",              fx:"gold_all" },
@@ -85,15 +87,15 @@ const PHASE_EVENTS = [
   { id:"dragon",    name:"มังกรบุก",          ico:"🐉", desc:"ทุกคนเสียอาวุธ ATK<3",       fx:"discard_weak" },
   { id:"assassin",  name:"นักฆ่าลึกลับ",     ico:"🗡️", desc:"ผู้เล่น HP มากสุดเสีย HP-3", fx:"dmg_highest" },
 ];
- 
+
 // ══════════════════════════════════════════════
 // MAP GENERATION
 // ══════════════════════════════════════════════
- 
+
 function generateHexMap(cols = 9, rows = 7) {
   const terrainPool = ["plains","plains","plains","plains","forest","forest","mountain","water","desert","swamp"];
   const cells = [];
- 
+
   // Special zones to place
   const specialPlaces = [
     { zone:"palace",     fixed:{ col:4, row:0 } },
@@ -107,17 +109,17 @@ function generateHexMap(cols = 9, rows = 7) {
     { zone:"cave",       fixed:null },
     { zone:"dungeon",    fixed:null },
   ];
- 
+
   // Fixed positions
   const fixedMap = {};
   specialPlaces.forEach(sp => {
     if (sp.fixed) fixedMap[`${sp.fixed.col},${sp.fixed.row}`] = sp.zone;
   });
- 
+
   // Random special positions (not overlapping fixed)
   const randomSpecials = specialPlaces.filter(sp => !sp.fixed);
   const usedPositions = new Set(Object.keys(fixedMap));
- 
+
   randomSpecials.forEach(sp => {
     let placed = false;
     let attempts = 0;
@@ -133,33 +135,33 @@ function generateHexMap(cols = 9, rows = 7) {
       attempts++;
     }
   });
- 
+
   // Generate cells
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const key = `${col},${row}`;
       const specialZone = fixedMap[key] || null;
- 
+
       let terrain;
       if (specialZone === "palace" || specialZone === "throne") terrain = "plains";
       else if (specialZone === "dark_forest" || specialZone === "rebel_camp") terrain = "forest";
       else if (specialZone === "cave") terrain = "mountain";
       else if (specialZone === "shrine") terrain = "plains";
       else terrain = terrainPool[Math.floor(Math.random() * terrainPool.length)];
- 
+
       // Water borders
       if ((col === 0 || col === cols-1) && Math.random() < 0.3) terrain = "water";
       if ((row === 0 || row === rows-1) && Math.random() < 0.2) terrain = "water";
- 
+
       // Palace always plains
       if (specialZone === "palace") terrain = "plains";
- 
+
       cells.push({ col, row, key, terrain, specialZone, players:[], trap:null, item:null });
     }
   }
   return cells;
 }
- 
+
 // Hex pixel position (flat-top)
 function hexToPixel(col, row, size = 52) {
   const w = size * 2;
@@ -168,7 +170,7 @@ function hexToPixel(col, row, size = 52) {
   const y = row * h + (col % 2 === 1 ? h / 2 : 0) + 50;
   return { x, y };
 }
- 
+
 // Hex distance
 function hexDistance(a, b) {
   const ac = a.col - (a.row - (a.row & 1)) / 2;
@@ -178,7 +180,7 @@ function hexDistance(a, b) {
   const dx = bc - ac, dy = br - ar;
   return Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dx - dy));
 }
- 
+
 // Get neighbors
 function getNeighbors(col, row, cells, cols = 9, rows = 7) {
   const isOdd = col % 2 === 1;
@@ -190,7 +192,7 @@ function getNeighbors(col, row, cells, cols = 9, rows = 7) {
     .filter(Boolean)
     .filter(c => c.terrain !== "water");
 }
- 
+
 // BFS reachable cells
 function getReachable(startCell, steps, cells) {
   if (steps <= 0) return [];
@@ -215,11 +217,11 @@ function getReachable(startCell, steps, cells) {
   }
   return [...new Set(reachable)];
 }
- 
+
 // ══════════════════════════════════════════════
 // GAME STATE
 // ══════════════════════════════════════════════
- 
+
 function createPlayers(playerData) {
   return playerData.map((p, i) => {
     const cls = CLASSES[p.classId] || CLASSES.warrior;
@@ -250,7 +252,7 @@ function createPlayers(playerData) {
     };
   });
 }
- 
+
 function dealStartingCards() {
   const allCards = [...WEAPON_CARDS, ...MAGIC_CARDS, ...TRAP_CARDS];
   const hand = [];
@@ -259,26 +261,26 @@ function dealStartingCards() {
   }
   return hand;
 }
- 
+
 function spawnPlayers(players, cells) {
   // Spread players far apart
   const spawnZones = ["village","rebel_camp","palace","dark_forest","dungeon","tower"];
   const spawnCells = spawnZones
     .map(z => cells.find(c => c.specialZone === z))
     .filter(Boolean);
- 
+
   // Fill remaining spawn points if needed
   while (spawnCells.length < players.length) {
     const rand = cells[Math.floor(Math.random() * cells.length)];
     if (!spawnCells.includes(rand) && rand.terrain !== "water") spawnCells.push(rand);
   }
- 
+
   return players.map((p, i) => {
     const cell = spawnCells[i % spawnCells.length];
     return { ...p, col: cell.col, row: cell.row };
   });
 }
- 
+
 // ══════════════════════════════════════════════
 // CSS
 // ══════════════════════════════════════════════
@@ -295,7 +297,7 @@ html,body,#root{width:100%;height:100%;overflow:hidden;background:var(--stone)}
 body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:var(--gold-d);border-radius:2px}
- 
+
 /* ── LAYOUT ── */
 .game-root{display:grid;grid-template-columns:220px 1fr 220px;grid-template-rows:52px 1fr 200px;height:100vh;gap:0}
 .top-bar{grid-column:1/-1;background:var(--s2);border-bottom:1px solid rgba(201,168,76,.2);display:flex;align-items:center;gap:12px;padding:0 16px;z-index:10}
@@ -304,7 +306,7 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .map-area:active{cursor:grabbing}
 .bottom-bar{background:var(--s2);border-top:1px solid rgba(201,168,76,.12);overflow:hidden;display:flex;flex-direction:column}
 .right-panel{grid-row:2/4;background:var(--s2);border-left:1px solid rgba(201,168,76,.12);overflow-y:auto;padding:10px}
- 
+
 /* ── TOP BAR ── */
 .tb-title{font-family:'Cinzel Decorative',serif;font-size:16px;color:var(--gold);letter-spacing:.06em;flex:0 0 auto}
 .tb-divider{width:1px;height:28px;background:rgba(201,168,76,.2)}
@@ -318,12 +320,12 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .tb-btn.primary:hover{filter:brightness(1.1)}
 .tb-btn.danger{background:rgba(139,26,26,.5);color:#ffaaaa;border-color:rgba(139,26,26,.7)}
 .tb-btn:disabled{opacity:.3;cursor:not-allowed}
- 
+
 /* ── SECTION ── */
 .sec{margin-bottom:12px}
 .sec-hdr{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.2em;color:var(--txt-m);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .sec-hdr::after{content:'';flex:1;height:1px;background:rgba(201,168,76,.1)}
- 
+
 /* ── PLAYER CARD ── */
 .pcard{background:var(--s3);border:1px solid rgba(201,168,76,.1);border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer;transition:all .2s;position:relative}
 .pcard:hover{border-color:rgba(201,168,76,.3);background:var(--s4)}
@@ -346,7 +348,7 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .p-stat span:last-child{color:var(--txt)}
 .turn-indicator{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);animation:glow 1s ease-in-out infinite}
 @keyframes glow{0%,100%{opacity:.6}50%{opacity:1}}
- 
+
 /* ── STATUS EFFECTS ── */
 .status-row{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px}
 .status-tag{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(0,0,0,.3)}
@@ -354,7 +356,7 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .status-freeze{color:#80c0ff;border:1px solid rgba(128,192,255,.3)}
 .status-poison{color:#80ff80;border:1px solid rgba(128,255,128,.3)}
 .status-stun{color:#ffff80;border:1px solid rgba(255,255,128,.3)}
- 
+
 /* ── ACTION PANEL ── */
 .action-row{display:flex;gap:6px;flex-wrap:wrap;padding:10px}
 .act-btn{background:var(--s4);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--txt);font-family:'Sarabun',sans-serif;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px}
@@ -365,7 +367,7 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .act-ico{font-size:20px}
 .act-label{font-size:9px;color:var(--txt-m)}
 .act-used{font-size:8px;color:var(--green)}
- 
+
 /* ── HAND CARDS ── */
 .hand-area{flex:1;overflow-x:auto;overflow-y:hidden;padding:10px;display:flex;align-items:center;gap:8px}
 .hand-card{background:var(--s3);border:1.5px solid rgba(201,168,76,.15);border-radius:10px;padding:8px;cursor:pointer;transition:all .2s;text-align:center;min-width:70px;max-width:70px;flex-shrink:0;position:relative}
@@ -379,7 +381,7 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .rarity-rare{background:rgba(80,120,220,.2);color:#80a0ff}
 .rarity-divine{background:rgba(200,160,40,.2);color:var(--gold)}
 .rarity-secret{background:rgba(160,40,160,.2);color:#d080ff}
- 
+
 /* ── LOG ── */
 .log-area{padding:10px;overflow-y:auto;flex:1}
 .log-entry{font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);color:var(--txt-m);line-height:1.5}
@@ -389,14 +391,14 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .log-entry.event{color:var(--gold)}
 .log-entry.death{color:#ff4040;font-weight:600}
 .log-entry.win{color:var(--gold-l);font-size:12px;font-weight:700}
- 
+
 /* ── INFO BOX ── */
 .info-box{background:var(--s3);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:8px;margin-bottom:8px;font-size:11px}
 .info-title{font-family:'Cinzel',serif;font-size:10px;color:var(--gold);margin-bottom:5px}
 .info-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px}
 .info-row:last-child{border:none}
 .info-val{color:var(--txt)}
- 
+
 /* ── HEX MAP ── */
 .hex-map-svg{overflow:visible}
 .hex-cell{cursor:pointer;transition:filter .15s}
@@ -412,23 +414,23 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .player-token:hover{filter:drop-shadow(0 4px 8px rgba(201,168,76,.5)) brightness(1.2)}
 .player-token.current-player{filter:drop-shadow(0 0 8px gold)}
 .trap-marker{pointer-events:none}
- 
+
 /* ── TOOLTIP ── */
 .tooltip{position:fixed;background:var(--s2);border:1px solid rgba(201,168,76,.3);border-radius:8px;padding:8px 10px;font-size:11px;pointer-events:none;z-index:999;max-width:180px;box-shadow:0 4px 20px rgba(0,0,0,.6)}
 .tooltip-title{font-family:'Cinzel',serif;color:var(--gold);font-size:12px;margin-bottom:4px}
 .tooltip-desc{color:var(--txt-m);line-height:1.5}
- 
+
 /* ── DICE ── */
 .dice-anim{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:80px;z-index:500;animation:dice-roll .6s ease-out forwards;pointer-events:none}
 @keyframes dice-roll{0%{opacity:0;transform:translate(-50%,-50%) scale(.5) rotate(-180deg)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.3) rotate(0deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(.8)}}
- 
+
 /* ── EVENT BANNER ── */
 .event-banner{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:rgba(13,11,8,.95);border:1px solid var(--gold);border-radius:12px;padding:14px 24px;text-align:center;z-index:400;animation:slide-down .4s ease-out;min-width:280px;max-width:400px}
 @keyframes slide-down{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .event-banner .ev-ico{font-size:36px;display:block;margin-bottom:4px}
 .event-banner .ev-name{font-family:'Cinzel',serif;color:var(--gold);font-size:16px;margin-bottom:4px}
 .event-banner .ev-desc{font-size:12px;color:var(--txt-m)}
- 
+
 /* ── WIN SCREEN ── */
 .win-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:1000}
 .win-box{background:var(--s2);border:2px solid var(--gold);border-radius:16px;padding:32px;text-align:center;max-width:380px}
@@ -437,7 +439,7 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .win-title{font-family:'Cinzel Decorative',serif;font-size:24px;color:var(--gold);margin-bottom:8px}
 .win-sub{font-size:14px;color:var(--txt-m);margin-bottom:20px}
 .win-reason{font-size:12px;color:var(--txt);background:var(--s3);padding:8px 14px;border-radius:8px;margin-bottom:20px}
- 
+
 /* ── PHASE BAR ── */
 .phase-track{display:flex;gap:4px;align-items:center}
 .phase-dot{width:24px;height:24px;border-radius:50%;border:1px solid rgba(201,168,76,.2);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--txt-m);transition:all .3s}
@@ -445,11 +447,11 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .phase-dot.current{background:rgba(201,168,76,.2);border-color:var(--gold);color:var(--gold);box-shadow:0 0 8px rgba(201,168,76,.3)}
 .phase-line{width:12px;height:1px;background:rgba(201,168,76,.2)}
 .phase-line.done{background:var(--gold-d)}
- 
+
 /* ── MOBILE GUARD ── */
 .mobile-msg{display:none;position:fixed;inset:0;background:var(--stone);align-items:center;justify-content:center;text-align:center;padding:24px;z-index:9999}
 @media(max-width:900px){.mobile-msg{display:flex}.game-root{display:none}}
- 
+
 /* ── MISC ── */
 .gold-text{color:var(--gold)}
 .tag{font-size:9px;padding:1px 6px;border-radius:3px}
@@ -462,11 +464,11 @@ body{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--txt)}
 .obj-done{color:var(--green)}
 .obj-active{color:var(--gold)}
 `;
- 
+
 // ══════════════════════════════════════════════
 // HEX SVG HELPERS
 // ══════════════════════════════════════════════
- 
+
 function hexPoints(cx, cy, size) {
   const points = [];
   for (let i = 0; i < 6; i++) {
@@ -475,7 +477,7 @@ function hexPoints(cx, cy, size) {
   }
   return points.join(" ");
 }
- 
+
 const TERRAIN_COLORS = {
   plains:   "#2d5a27",
   forest:   "#1a4a1a",
@@ -492,11 +494,11 @@ const TERRAIN_STROKE = {
   desert:   "#7a6a40",
   swamp:    "#3a5a40",
 };
- 
+
 // ══════════════════════════════════════════════
 // MAIN COMPONENT
 // ══════════════════════════════════════════════
- 
+
 export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
   // Demo mode if no roomData
   const defaultPlayers = [
@@ -510,14 +512,14 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
     classId: p.class || "warrior",
     role: roomData.roles?.[i] || ["king","rebel","rebel","commoner"][i % 4],
   })) || defaultPlayers;
- 
+
   // MAP
   const [cells, setCells] = useState(() => generateHexMap(9, 7));
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
   const mapAreaRef = useRef(null);
- 
+
   // GAME STATE
   const [players, setPlayers] = useState(() => {
     const ps = spawnPlayers(createPlayers(initPlayers), cells);
@@ -539,16 +541,16 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
   const [tooltip, setTooltip] = useState(null);
   const [showRules, setShowRules] = useState(false);
   const [turnPhaseAnnounce, setTurnPhaseAnnounce] = useState(null);
- 
+
   const addLog = useCallback((msg, type = "") => {
     setLog(l => [{ msg, type, time: Date.now() }, ...l.slice(0, 99)]);
   }, []);
- 
+
   // ── CENTER MAP ──
   const HEX_SIZE = 46;
   const mapW = 9 * HEX_SIZE * 1.5 + 120;
   const mapH = 7 * HEX_SIZE * 1.73 + 100;
- 
+
   const centerMap = useCallback(() => {
     if (!mapAreaRef.current) return;
     const rect = mapAreaRef.current.getBoundingClientRect();
@@ -558,7 +560,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       y: Math.round((rect.height - mapH) / 2),
     });
   }, [mapW, mapH]);
- 
+
   // Center once after layout is fully painted, then watch for resize
   useEffect(() => {
     if (!mapAreaRef.current) return;
@@ -570,10 +572,10 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
     ro.observe(mapAreaRef.current);
     return () => ro.disconnect();
   }, [centerMap]);
- 
+
   const me = players[myIdx];
   const currentPlayer = players[currentTurn];
- 
+
   // ── MOVE CELLS CALC ──
   useEffect(() => {
     if (actionMode === "move" && !actionsDone.moved) {
@@ -584,7 +586,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       setReachableCells([]);
     }
   }, [actionMode, actionsDone.moved, cells, players, currentTurn]);
- 
+
   // ── ATTACK CELLS CALC ──
   useEffect(() => {
     if (actionMode === "attack" && !actionsDone.attacked) {
@@ -600,12 +602,12 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       setAttackableCells([]);
     }
   }, [actionMode, actionsDone.attacked, cells, players, currentTurn]);
- 
+
   // ── CELL CLICK ──
   const handleCellClick = useCallback((cell) => {
     const cp = players[currentTurn];
     if (currentTurn !== myIdx) return; // Not my turn
- 
+
     if (actionMode === "move") {
       const isReachable = reachableCells.some(c => c.key === cell.key);
       if (!isReachable) return;
@@ -636,7 +638,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
     }
     setSelectedCell(cell);
   }, [actionMode, currentTurn, myIdx, players, reachableCells, selectedCard]);
- 
+
   // ── ZONE EFFECT ──
   const applyZoneEffect = useCallback((cell, playerIdx) => {
     if (!cell.specialZone) return;
@@ -681,17 +683,17 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       addLog(`💰 ${players[trap.ownerId]?.name} ได้ EXP+2 จากกับดัก`, "");
     }
   }, [players, addLog]);
- 
+
   // ── ATTACK ──
   const rollD6 = () => Math.ceil(Math.random() * 6);
- 
+
   const performAttack = useCallback((attackerId, defenderId) => {
     const attacker = players[attackerId];
     const defender = players[defenderId];
     const roll = rollD6();
     setShowDice(roll);
     setTimeout(() => setShowDice(null), 800);
- 
+
     const hit = roll >= 3; // 66% hit chance base
     if (!hit) {
       addLog(`🎯 ${attacker.name} โจมตี ${defender.name} — พลาด! (🎲${roll})`, "dmg");
@@ -699,11 +701,11 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       setActionMode(null);
       return;
     }
- 
+
     const crit = roll === 6;
     const rawDmg = attacker.atk + (crit ? 2 : 0);
     const finalDmg = Math.max(1, rawDmg - defender.def);
- 
+
     setPlayers(ps => ps.map(p => {
       if (p.id === defenderId) {
         const newHp = Math.max(0, p.hp - finalDmg);
@@ -715,17 +717,17 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       }
       return p;
     }));
- 
+
     addLog(`⚔️ ${attacker.name} โจมตี ${defender.name} — ${finalDmg} ดาเมจ 🎲${roll}${crit ? " ✨คริต!" : ""}`, "dmg");
     setActionsDone(a => ({ ...a, attacked: true }));
     setActionMode(null);
   }, [players, addLog]);
- 
+
   // ── USE CARD ──
   const useCard = useCallback((card, targetCell, playerIdx) => {
     const cp = players[playerIdx];
     const targetPlayer = players.find(p => p.alive && p.col === targetCell.col && p.row === targetCell.row);
- 
+
     if (card.type === "magic" || MAGIC_CARDS.some(m => m.id === card.id)) {
       if (cp.mana < (card.cost || 0)) {
         addLog(`❌ มานาไม่พอ`, "dmg");
@@ -754,14 +756,14 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
     }
     setActionsDone(a => ({ ...a, usedItem: true }));
   }, [players, addLog]);
- 
+
   // ── CHECK WIN ──
   const checkWin = useCallback(() => {
     setPlayers(ps => {
       const alive = ps.filter(p => p.alive);
       const king = ps.find(p => p.role === "king");
       const rebels = ps.filter(p => p.role === "rebel");
- 
+
       if (!king?.alive) {
         const aliveRebels = rebels.filter(r => r.alive);
         if (aliveRebels.length > 0) {
@@ -777,7 +779,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       return ps;
     });
   }, []);
- 
+
   // ── END TURN ──
   const endTurn = useCallback(() => {
     // Tick status effects & mana regen
@@ -791,11 +793,11 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       const mana = Math.min(p.maxMana, p.mana + 1);
       return { ...p, hp, mana, statusEffects: effects };
     }));
- 
+
     // Next player
     let next = (currentTurn + 1) % players.length;
     while (!players[next]?.alive) next = (next + 1) % players.length;
- 
+
     // Phase advancement
     let newPhase = phase;
     let newStep = phaseStep + 1;
@@ -834,14 +836,14 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
     setTurnPhaseAnnounce(`เทิร์นของ ${players[next]?.name || "?"}`);
     setTimeout(() => setTurnPhaseAnnounce(null), 1500);
     addLog(`🔔 เทิร์นของ ${players[next]?.name} (เฟส ${newPhase})`, "important");
- 
+
     // Draw 1 card for next player
     const allCards = [...WEAPON_CARDS, ...MAGIC_CARDS, ...TRAP_CARDS];
     const newCard = { ...allCards[Math.floor(Math.random() * allCards.length)], uid: Math.random() };
     setPlayers(ps => ps.map((p, i) => i === next ? { ...p, hand: [...p.hand, newCard].slice(-8) } : p));
     checkWin();
   }, [currentTurn, phase, phaseStep, players, addLog, checkWin]);
- 
+
   const applyPhaseEvent = useCallback((ev) => {
     setPlayers(ps => ps.map(p => {
       if (!p.alive) return p;
@@ -852,7 +854,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
       return p;
     }));
   }, []);
- 
+
   // ── MAP DRAG ──
   const handleMapMouseDown = (e) => {
     if (e.button !== 0) return;
@@ -867,13 +869,13 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
     });
   };
   const handleMapMouseUp = () => { isDragging.current = false; };
- 
+
   const isMyTurn = currentTurn === myIdx;
- 
+
   return (
     <>
       <style>{css}</style>
- 
+
       <div className="mobile-msg">
         <div>
           <div style={{fontSize:"48px",marginBottom:"12px"}}>🏰</div>
@@ -881,13 +883,13 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
           <div style={{color:"var(--txt-m)",fontSize:"13px"}}>กรุณาใช้หน้าจอขนาดใหญ่<br/>เพื่อประสบการณ์ที่ดีที่สุด</div>
         </div>
       </div>
- 
+
       <div className="game-root">
         {/* ═══ TOP BAR ═══ */}
         <div className="top-bar">
           <span className="tb-title">♛ บัลลังก์เงา</span>
           <div className="tb-divider"/>
- 
+
           {/* Phase track */}
           <div className="phase-track">
             {[1,2,3,4,5,6].map(n => (
@@ -915,7 +917,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
           )}
           {onLeave && <button className="tb-btn danger" onClick={onLeave}>✕ ออก</button>}
         </div>
- 
+
         {/* ═══ LEFT PANEL — Players ═══ */}
         <div className="left-panel">
           <div className="sec">
@@ -970,7 +972,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
               );
             })}
           </div>
- 
+
           {/* Objectives */}
           <div className="sec">
             <div className="sec-hdr">🎯 เป้าหมาย</div>
@@ -986,7 +988,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
             </div>
           </div>
         </div>
- 
+
         {/* ═══ MAP AREA ═══ */}
         <div className="map-area"
           ref={mapAreaRef}
@@ -1018,7 +1020,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
               const terrain = TERRAIN[cell.terrain] || TERRAIN.plains;
               const fill = TERRAIN_COLORS[cell.terrain] || "#2d5a27";
               const stroke = TERRAIN_STROKE[cell.terrain] || "#3a7a35";
- 
+
               return (
                 <g key={cell.key}
                   className={`hex-cell ${isReachable ? "hex-reachable" : ""} ${isAttackable ? "hex-attackable" : ""} ${isSelected ? "hex-selected" : ""}`}
@@ -1047,10 +1049,10 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
                   {isAttackable && hasPlayer && (
                     <polygon points={hexPoints(x, y, HEX_SIZE - 2)} fill="rgba(201,76,76,.25)" stroke="none"/>
                   )}
- 
+
                   {/* Terrain icon */}
                   <text x={x} y={y - 10} className="hex-label" fontSize="16">{terrain.ico}</text>
- 
+
                   {/* Zone label */}
                   {zone && (
                     <>
@@ -1058,7 +1060,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
                       <text x={x} y={y + 20} className="hex-zone-label" fontSize="7">{zone.name}</text>
                     </>
                   )}
- 
+
                   {/* Trap indicator */}
                   {cell.trap && (
                     <text x={x + 16} y={y - 16} fontSize="10" fill="#ff8040">🪤</text>
@@ -1066,7 +1068,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
                 </g>
               );
             })}
- 
+
             {/* Players */}
             {players.map((p, i) => {
               if (!p.alive) return null;
@@ -1077,7 +1079,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
               const sameCell = players.filter(pp => pp.alive && pp.col === p.col && pp.row === p.row);
               const myIdx2 = sameCell.findIndex(pp => pp.id === p.id);
               const offX = sameCell.length > 1 ? (myIdx2 - (sameCell.length - 1) / 2) * 14 : 0;
- 
+
               return (
                 <g key={i}
                   className={`player-token ${isCurrentTurn ? "current-player" : ""}`}
@@ -1094,7 +1096,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
               );
             })}
           </svg>
- 
+
           {/* Turn announce */}
           {turnPhaseAnnounce && (
             <div style={{
@@ -1110,7 +1112,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
             </div>
           )}
         </div>
- 
+
         {/* ═══ BOTTOM BAR — Actions + Hand ═══ */}
         <div className="bottom-bar">
           {/* Actions */}
@@ -1166,7 +1168,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
               </div>
             )}
           </div>
- 
+
           {/* Hand */}
           <div className="hand-area">
             {me?.hand?.map((card, ci) => {
@@ -1201,7 +1203,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
             )}
           </div>
         </div>
- 
+
         {/* ═══ RIGHT PANEL — Log ═══ */}
         <div className="right-panel">
           <div className="sec">
@@ -1216,14 +1218,14 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
           </div>
         </div>
       </div>
- 
+
       {/* ═══ DICE ANIMATION ═══ */}
       {showDice !== null && (
         <div className="dice-anim">
           {["⚀","⚁","⚂","⚃","⚄","⚅"][showDice - 1] || "🎲"}
         </div>
       )}
- 
+
       {/* ═══ PHASE EVENT BANNER ═══ */}
       {activeEvent && (
         <div className="event-banner">
@@ -1232,7 +1234,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
           <div className="ev-desc">{activeEvent.desc}</div>
         </div>
       )}
- 
+
       {/* ═══ TOOLTIP ═══ */}
       {tooltip && (
         <div className="tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
@@ -1240,7 +1242,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
           <div className="tooltip-desc">{tooltip.desc}</div>
         </div>
       )}
- 
+
       {/* ═══ RULES PANEL ═══ */}
       {showRules && (
         <div style={{
@@ -1271,7 +1273,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
           </div>
         </div>
       )}
- 
+
       {/* ═══ WIN SCREEN ═══ */}
       {gameOver && (
         <div className="win-overlay">
