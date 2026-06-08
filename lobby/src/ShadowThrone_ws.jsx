@@ -612,13 +612,13 @@ export default function ShadowThrone() {
           <div style={{ marginBottom: "16px" }}>
             {wsBadge}
             <div style={{ marginTop: "8px" }}>
-              <button
-                className="b-sm"
-                onClick={() => setShowServerConfig(v => !v)}
-                style={{ fontSize: "10px" }}
-              >
-                🌐 {showServerConfig ? "ซ่อน" : "ตั้งค่า"} Server URL
-              </button>
+                {/* <button
+                  className="b-sm"
+                  onClick={() => setShowServerConfig(v => !v)}
+                  style={{ fontSize: "10px" }}
+                >
+                  🌐 {showServerConfig ? "ซ่อน" : "ตั้งค่า"} Server URL
+                </button> */}
             </div>
             {showServerConfig && (
               <div style={{
