@@ -23,7 +23,7 @@ function getWsUrl() {
     if (saved && saved.startsWith("ws")) return saved;
   } catch {}
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}/ws`;
+  return "wss://sot-server-0te4.onrender.com";
 }
 const WS_URL = getWsUrl();
 
