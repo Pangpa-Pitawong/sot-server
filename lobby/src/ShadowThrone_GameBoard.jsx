@@ -261,23 +261,32 @@ function dealStartingCards() {
   }
   return hand;
 }
-
 function spawnPlayers(players, cells) {
-  // Spread players far apart
-  const spawnZones = ["village", "rebel_camp", "palace", "dark_forest", "dungeon", "tower"];
-  const spawnCells = spawnZones
-    .map(z => cells.find(c => c.specialZone === z))
-    .filter(Boolean);
+  const maxCol = Math.max(...cells.map(c => c.col));
+  const maxRow = Math.max(...cells.map(c => c.row));
 
-  // Fill remaining spawn points if needed
-  while (spawnCells.length < players.length) {
-    const rand = cells[Math.floor(Math.random() * cells.length)];
-    if (!spawnCells.includes(rand) && rand.terrain !== "water") spawnCells.push(rand);
-  }
+  // หาช่องขอบแมพทั้งหมด
+  const edgeCells = cells.filter(cell =>
+    cell.terrain !== "water" &&
+    (
+      cell.col === 0 ||
+      cell.row === 0 ||
+      cell.col === maxCol ||
+      cell.row === maxRow
+    )
+  );
 
-  return players.map((p, i) => {
-    const cell = spawnCells[i % spawnCells.length];
-    return { ...p, col: cell.col, row: cell.row };
+  // สุ่มลำดับ
+  const shuffled = [...edgeCells].sort(() => Math.random() - 0.5);
+
+  return players.map((player, index) => {
+    const cell = shuffled[index];
+
+    return {
+      ...player,
+      col: cell.col,
+      row: cell.row
+    };
   });
 }
 
@@ -514,8 +523,9 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
   })) || defaultPlayers;
 
   // MAP
-  const [cells, setCells] = useState(() => generateHexMap(9, 7));
+  const [cells, setCells] = useState(() => generateHexMap(13, 11));
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] =  useState(1);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
   const mapAreaRef = useRef(null);
@@ -541,6 +551,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
   const [tooltip, setTooltip] = useState(null);
   const [showRules, setShowRules] = useState(false);
   const [turnPhaseAnnounce, setTurnPhaseAnnounce] = useState(null);
+  const [shopItems,setShopItems] = useState([]);
 
   const addLog = useCallback((msg, type = "") => {
     setLog(l => [{ msg, type, time: Date.now() }, ...l.slice(0, 99)]);
@@ -548,7 +559,14 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
 
   // ── CENTER MAP ──
   const HEX_SIZE = 46;
-  const mapW = 9 * HEX_SIZE * 1.5 + 120;
+  const MAP_COLS = 13;
+const MAP_ROWS = 11;
+
+const mapW =
+ MAP_COLS * HEX_SIZE * 1.5 + 120;
+
+const mapH =
+ MAP_ROWS * HEX_SIZE * 1.73 + 120;
   const mapH = 7 * HEX_SIZE * 1.73 + 100;
 
   const centerMap = useCallback(() => {
@@ -606,7 +624,8 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
   // ── CELL CLICK ──
   const handleCellClick = useCallback((cell) => {
     const cp = players[currentTurn];
-    if (currentTurn !== myIdx) return; // Not my turn
+    if (!debugMode && currentTurn !== myIdx)
+ return;
 
     if (actionMode === "move") {
       const isReachable = reachableCells.some(c => c.key === cell.key);
@@ -874,7 +893,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
 
   return (
     <>
-      <style>{css}</style>
+      import "../styles/gameboard.css";
 
       <div className="mobile-msg">
         <div>
@@ -1097,7 +1116,7 @@ export default function GameBoard({ roomData, myIdx = 0, onLeave }) {
               return (
                 <g key={i}
                   className={`player-token ${isCurrentTurn ? "current-player" : ""}`}
-                  transform={`translate(${x + offX - 14}, ${y - 14})`}
+                  transform={`translate(${mapOffset.x}, ${mapOffset.y})scale(${zoom})`}
                 >
                   <circle cx="14" cy="14" r="14" fill={cls?.color + "cc"} stroke={isCurrentTurn ? "gold" : "rgba(0,0,0,.5)"} strokeWidth={isCurrentTurn ? "2" : "1"} />
                   <text x="14" y="14" textAnchor="middle" dominantBaseline="middle" fontSize="16">{cls?.ico}</text>

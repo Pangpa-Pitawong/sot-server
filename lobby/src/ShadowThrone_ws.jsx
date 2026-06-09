@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import GameBoard from "./ShadowThrone_GameBoard";
+import GameBoard from "./game/components/GameBoard";
 
 // ─── CONFIG: Dynamic WebSocket URL ───────────────────────────────────────────
 // Priority: 1) ?server= query param  2) localStorage  3) same-host /ws
